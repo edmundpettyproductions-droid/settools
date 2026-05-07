@@ -1,0 +1,17 @@
+# Production PDFs — keep off GitHub
+*.pdf
+
+# Large installer files
+*.exe
+*.7z.exe
+
+# Temp/utility files
+files.zip
+extract_pdfs.py
+pdf_extracted.json
+pdf_tmp/
+files/
+PortableGit/
+
+# Claude internal
+.claude/
