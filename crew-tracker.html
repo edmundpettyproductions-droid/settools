@@ -488,6 +488,9 @@ table.dood td.nc.checked{color:var(--success)}
             <div class="pstat" id="ss-status"></div>
           </div>
         </div>
+        <div id="sched-flags-wrap" style="display:none;margin-top:4px;padding:10px 12px;background:rgba(240,160,64,.07);border:1px solid rgba(240,160,64,.2);border-radius:4px;margin:8px 10px 0">
+          <div id="sched-flags"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -533,6 +536,7 @@ var S = {
   shootDays: [],
   currentSceneIdx: -1,
   scenesReordered: false,
+  schedFlags: [],
   weather: null,
 };
 
@@ -1460,18 +1464,20 @@ var stripData=null, ssData=null;
 function mergeSchedules(){
   if(!stripData)return;
   var nid=1;
+  S.schedFlags=[];
   S.scenes=stripData.map(function(item){
     if(item.type==='lunch'){return{isLunch:true,startTime:item.startTime,duration:item.duration||30,done:false};}
     var extra={};
     if(ssData){
-      var match=ssData.find(function(s){return s.nums===item.nums||s.nums.split(',').some(function(n){return item.nums.indexOf(n.trim())>=0;});});
+      var match=ssData.find(function(s){return numsMatch(item.nums,s.nums);});
       if(match)extra=match;
     }
-    return{id:nid++,isLunch:false,nums:item.nums,set:item.set,pages:item.pages,intExt:item.intExt,dn:item.dn,castNums:item.castNums||[],estMins:item.estMins||0,startTime:item.startTime,done:false,stunts:extra.stunts||'',hmNotes:extra.hmNotes||'',wdNotes:extra.wdNotes||''};
+    return{id:nid++,isLunch:false,nums:item.nums,set:item.set,pages:item.pages,intExt:item.intExt,dn:item.dn,castNums:item.castNums||[],estMins:item.estMins||0,startTime:item.startTime,done:false,flags:[],stunts:extra.stunts||'',hmNotes:extra.hmNotes||'',wdNotes:extra.wdNotes||''};
   });
   S.currentSceneIdx=-1;
   S.scenesReordered=false;
-  renderSched();renderSceneStrip();save();
+  if(ssData)crossReference();
+  renderSched();renderSceneStrip();renderSchedFlags();save();
 }
 
 function calcAdjTimes(){
@@ -1543,6 +1549,12 @@ function renderSched(){
       tAdj.innerHTML='<div class="sr-t-label">adj</div><div class="sr-t-val'+(adjDiff?' adj-diff':'')+'">'+esc(adjT)+'</div>';
     }
 
+    // Flag indicator
+    if(sc.flags&&sc.flags.length){
+      var flagTip=sc.flags.map(function(f){return f.f;}).join('\n');
+      info.querySelector('.sr-title').insertAdjacentHTML('afterend','<span title="'+esc(flagTip)+'" style="font-family:var(--mono);font-size:9px;color:var(--warn);margin-left:6px;cursor:help">⚠ '+sc.flags.length+'</span>');
+    }
+
     // Checkbox
     var cb=document.createElement('div');cb.className='sr-cb';cb.title='Mark '+(sc.done?'not ':'')+'done';
     cb.textContent=sc.done?'✅':'☐';
@@ -1607,7 +1619,92 @@ function toggleSceneDone(idx){
   }
 }
 
-function clearSched(){S.scenes=[];S.currentSceneIdx=-1;stripData=null;ssData=null;renderSched();renderSceneStrip();save();}
+function clearSched(){S.scenes=[];S.currentSceneIdx=-1;S.schedFlags=[];stripData=null;ssData=null;renderSched();renderSceneStrip();renderSchedFlags();save();}
+
+// ── SCHEDULE FLAGS ──
+function normStr(s){return(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
+function normIntExt(s){var n=normStr(s);if(n.indexOf('INT')>=0&&n.indexOf('EXT')>=0)return'INT/EXT';if(n.indexOf('INT')>=0)return'INT';if(n.indexOf('EXT')>=0)return'EXT';return n;}
+function normDN(s){var n=normStr(s);if(n.indexOf('NIGHT')>=0||n==='N')return'NIGHT';if(n.indexOf('DAY')>=0||n==='D')return'DAY';return n;}
+function normPages(s){return(s||'').replace(/\s/g,'').toLowerCase();}
+function numsMatch(a,b){
+  var na=normStr(a),nb=normStr(b);
+  if(na===nb)return true;
+  var partsA=a.toString().split(/[,\/]+/).map(function(x){return normStr(x.trim());});
+  var partsB=b.toString().split(/[,\/]+/).map(function(x){return normStr(x.trim());});
+  return partsA.some(function(pa){return partsB.some(function(pb){return pa===pb||pa.indexOf(pb)>=0||pb.indexOf(pa)>=0;});});
+}
+function setsMatch(a,b){
+  var na=normStr(a),nb=normStr(b);
+  if(!na||!nb)return true;
+  return na===nb||na.indexOf(nb)>=0||nb.indexOf(na)>=0;
+}
+
+function crossReference(){
+  if(!stripData||!ssData)return;
+  S.schedFlags=[];
+  var stripScenes=stripData.filter(function(s){return s.type==='scene';});
+  var ssMatched=new Array(ssData.length).fill(false);
+
+  stripScenes.forEach(function(item){
+    var mi=ssData.findIndex(function(s){return numsMatch(item.nums,s.nums);});
+    if(mi<0){
+      S.schedFlags.push({type:'missing_ss',nums:item.nums,set:item.set});
+      // mark scene in S.scenes
+      var sc=S.scenes.find(function(s){return!s.isLunch&&numsMatch(s.nums,item.nums);});
+      if(sc){if(!sc.flags)sc.flags=[];sc.flags.push({f:'Not found in shooting schedule'});}
+      return;
+    }
+    ssMatched[mi]=true;
+    var ss=ssData[mi];
+    var sc=S.scenes.find(function(s){return!s.isLunch&&numsMatch(s.nums,item.nums);});
+    if(!sc)return;
+    if(!sc.flags)sc.flags=[];
+
+    if(!setsMatch(item.set,ss.set)){
+      var flag={type:'mismatch',nums:item.nums,field:'Set',strip:item.set,ss:ss.set};
+      S.schedFlags.push(flag);sc.flags.push({f:'Set: "'+item.set+'" vs "'+ss.set+'"'});
+    }
+    if(item.intExt&&ss.intExt&&normIntExt(item.intExt)!==normIntExt(ss.intExt)){
+      var flag={type:'mismatch',nums:item.nums,field:'INT/EXT',strip:item.intExt,ss:ss.intExt};
+      S.schedFlags.push(flag);sc.flags.push({f:'INT/EXT: "'+item.intExt+'" vs "'+ss.intExt+'"'});
+    }
+    if(item.dn&&ss.dn&&normDN(item.dn)!==normDN(ss.dn)){
+      var flag={type:'mismatch',nums:item.nums,field:'Day/Night',strip:item.dn,ss:ss.dn};
+      S.schedFlags.push(flag);sc.flags.push({f:'Day/Night: "'+item.dn+'" vs "'+ss.dn+'"'});
+    }
+    if(item.pages&&ss.pages&&normPages(item.pages)!==normPages(ss.pages)){
+      var flag={type:'mismatch',nums:item.nums,field:'Pages',strip:item.pages,ss:ss.pages};
+      S.schedFlags.push(flag);sc.flags.push({f:'Pages: "'+item.pages+'" vs "'+ss.pages+'"'});
+    }
+  });
+
+  // SS scenes not found in strip
+  ssData.forEach(function(ss,i){
+    if(!ssMatched[i]){
+      S.schedFlags.push({type:'missing_strip',nums:ss.nums,set:ss.set});
+    }
+  });
+}
+
+function renderSchedFlags(){
+  var wrap=document.getElementById('sched-flags');
+  if(!wrap)return;
+  var container=document.getElementById('sched-flags-wrap');
+  if(!S.schedFlags||!S.schedFlags.length){
+    container.style.display='none';return;
+  }
+  container.style.display='block';
+  var missing_ss=S.schedFlags.filter(function(f){return f.type==='missing_ss';});
+  var missing_strip=S.schedFlags.filter(function(f){return f.type==='missing_strip';});
+  var mismatches=S.schedFlags.filter(function(f){return f.type==='mismatch';});
+  var total=S.schedFlags.length;
+  var html='<div style="font-family:var(--mono);font-size:9px;font-weight:600;color:var(--warn);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">⚠ '+total+' inconsistenc'+(total===1?'y':'ies')+' found</div>';
+  function flagRow(label,val){return'<div style="display:flex;gap:6px;padding:3px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3);min-width:80px;flex-shrink:0">'+label+'</span><span style="color:var(--text)">'+esc(val)+'</span></div>';}
+  if(missing_ss.length){html+='<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin:7px 0 3px">In strip, not in shooting schedule</div>';missing_ss.forEach(function(f){html+=flagRow('Sc '+f.nums,f.set||'');});}
+  if(missing_strip.length){html+='<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin:7px 0 3px">In shooting schedule, not in strip</div>';missing_strip.forEach(function(f){html+=flagRow('Sc '+f.nums,f.set||'');});}
+  if(mismatches.length){html+='<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin:7px 0 3px">Field mismatches</div>';mismatches.forEach(function(f){html+=flagRow('Sc '+f.nums+' · '+f.field,'"'+f.strip+'"  →  "'+f.ss+'"');});}
+  wrap.innerHTML=html;
+}
 
 // ── DOOD ──
 (function(){
