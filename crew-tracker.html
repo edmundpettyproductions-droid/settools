@@ -1451,16 +1451,27 @@ var stripData=null, ssData=null;
     var reader=new FileReader();reader.onload=function(e){extractStrip(e.target.result.split(',')[1]);};reader.readAsDataURL(file);
   }
 
+  function buildDayContext(){
+    var day=S.prod&&S.prod.day?S.prod.day:'';
+    var date=S.prod&&S.prod.date?S.prod.date:'';
+    var label=day&&date?day+' ('+date+')':day||date||'the current shooting day';
+    var guard=day||date
+      ?'CRITICAL: Extract ONLY scenes scheduled for '+label+'. Do NOT extract scenes from any other shooting day, from the advance schedule section, or from any future/past day headers. If the PDF contains multiple day sections, only process the section for '+label+'.'
+      :'Extract ONLY scenes from the current shooting day section. Do NOT include scenes from any advance schedule section or other day headers.';
+    return{label:label,guard:guard};
+  }
+
   async function extractStrip(b64){
+    var dayCtx=buildDayContext();
     var SYS='You are a film production schedule parser. Return ONLY raw JSON, no markdown.';
-    var P='Parse this strip schedule PDF. Extract the shooting order for DAY 1 only.\nReturn an array of scene objects and lunch breaks:\n[{type:"scene", nums:"41", set:"PARKING GARAGE", intExt:"INT", dn:"Day 9", pages:"2/8", castNums:["1","8","PC2","STUNT"], estMins:25, startTime:"08:00"}, {type:"lunch", startTime:"13:00", duration:30}, ...]\nestMins: convert "0:25" to 25, "2:00" to 120. startTime in HH:MM 24h. Include all scenes in shooting order.';
+    var P='Parse this strip schedule PDF. Extract the shooting order for '+dayCtx.label+' ONLY.\n'+dayCtx.guard+'\nReturn an array of scene objects and lunch breaks:\n[{type:"scene", nums:"41", set:"PARKING GARAGE", intExt:"INT", dn:"Day 9", pages:"2/8", castNums:["1","8","PC2","STUNT"], estMins:25, startTime:"08:00"}, {type:"lunch", startTime:"13:00", duration:30}, ...]\nestMins: convert "0:25" to 25, "2:00" to 120. startTime in HH:MM 24h. Include ALL scenes for that day in shooting order. Do NOT include scenes from any other day or advance schedule section.';
     try{
       var raw=await apiCall([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:P}]}],SYS);
       var list=parseJSON(raw,'strip');
       if(!list.length){showStat('strip-status','err','No scenes found.');return;}
       stripData=list;
       mergeSchedules();
-      showStat('strip-status','ok','✓ '+list.filter(function(s){return s.type==='scene';}).length+' scenes loaded');
+      showStat('strip-status','ok','✓ '+list.filter(function(s){return s.type==='scene';}).length+' scenes loaded for '+dayCtx.label);
     }catch(e){showStat('strip-status','err','Error: '+e.message);}
   }
 
@@ -1478,8 +1489,9 @@ var stripData=null, ssData=null;
   }
 
   async function extractSS(b64){
+    var dayCtx=buildDayContext();
     var SYS='Film schedule cross-reference. Return ONLY raw JSON.';
-    var P='From this shooting schedule, extract scenes for Day 1 only. Return array of {nums, set, intExt, dn, pages, stunts, hmNotes, wdNotes, artNotes, soundNotes, camNotes} where *Notes fields are brief strings. Return raw JSON array only.';
+    var P='From this shooting schedule, extract scenes for '+dayCtx.label+' ONLY.\n'+dayCtx.guard+'\nReturn array of {nums, set, intExt, dn, pages, stunts, hmNotes, wdNotes, artNotes, soundNotes, camNotes} where *Notes fields are brief strings. Return raw JSON array only.';
     try{
       var raw=await apiCall([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:P}]}],SYS);
       ssData=parseJSON(raw,'ss');
