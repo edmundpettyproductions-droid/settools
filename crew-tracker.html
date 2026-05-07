@@ -532,6 +532,7 @@ var S = {
   doods: [],  // {dept, days:[], items:[{name, codes:{day:code}, start, finish, total, checkedIn}]}
   shootDays: [],
   currentSceneIdx: -1,
+  scenesReordered: false,
   weather: null,
 };
 
@@ -1469,6 +1470,7 @@ function mergeSchedules(){
     return{id:nid++,isLunch:false,nums:item.nums,set:item.set,pages:item.pages,intExt:item.intExt,dn:item.dn,castNums:item.castNums||[],estMins:item.estMins||0,startTime:item.startTime,done:false,stunts:extra.stunts||'',hmNotes:extra.hmNotes||'',wdNotes:extra.wdNotes||''};
   });
   S.currentSceneIdx=-1;
+  S.scenesReordered=false;
   renderSched();renderSceneStrip();save();
 }
 
@@ -1528,13 +1530,18 @@ function renderSched(){
     var info=document.createElement('div');info.className='sr-info';
     info.innerHTML='<div class="sr-title">'+esc(sc.set)+'</div><div class="sr-sub">'+esc(sc.intExt)+' · '+esc(sc.dn)+' · '+esc(sc.pages)+'  <span style="font-family:var(--mono);font-size:9px;color:var(--text3)">'+estStr+'</span></div>';
 
-    // Original time column
+    // Time column — orig only until reordered, then show both
     var tOrig=document.createElement('div');tOrig.className='sr-times-orig';
-    tOrig.innerHTML='<div class="sr-t-label">orig</div><div class="sr-t-val">'+esc(origT)+'</div>';
+    if(S.scenesReordered){
+      tOrig.innerHTML='<div class="sr-t-label">orig</div><div class="sr-t-val">'+esc(origT)+'</div>';
+    } else {
+      tOrig.innerHTML='<div class="sr-t-val">'+esc(origT)+'</div>';
+    }
 
-    // Adjusted time column
     var tAdj=document.createElement('div');tAdj.className='sr-times-orig';
-    tAdj.innerHTML='<div class="sr-t-label">adj</div><div class="sr-t-val'+(adjDiff?' adj-diff':'')+'">'+esc(adjT)+'</div>';
+    if(S.scenesReordered){
+      tAdj.innerHTML='<div class="sr-t-label">adj</div><div class="sr-t-val'+(adjDiff?' adj-diff':'')+'">'+esc(adjT)+'</div>';
+    }
 
     // Checkbox
     var cb=document.createElement('div');cb.className='sr-cb';cb.title='Mark '+(sc.done?'not ':'')+'done';
@@ -1575,6 +1582,7 @@ function addDragHandlers(row,i,wrap){
     S.scenes.splice(targetIdx,0,moved);
     if(S.currentSceneIdx===schedDragIdx)S.currentSceneIdx=targetIdx;
     schedDragIdx=null;
+    S.scenesReordered=true;
     renderSched();renderSceneStrip();save();
   });
 }
@@ -1585,6 +1593,7 @@ function moveScene(i,dir){
   var tmp=S.scenes[i];S.scenes[i]=S.scenes[j];S.scenes[j]=tmp;
   if(S.currentSceneIdx===i)S.currentSceneIdx=j;
   else if(S.currentSceneIdx===j)S.currentSceneIdx=i;
+  S.scenesReordered=true;
   renderSched();renderSceneStrip();save();
 }
 
