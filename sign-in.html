@@ -243,7 +243,21 @@ function renderGrid(){
       (c.role?'<div class="cc-role">'+esc(c.role)+'</div>':'')+
       (c.callTime?'<div class="cc-call">'+fmt12(c.callTime)+'</div>':'')+
       (ok&&rec?'<div class="cc-time">Signed in '+esc(rec.signedAt)+'</div>':'');
-    if(!ok) card.onclick=(function(ac){ return function(){ openSignin(ac); }; })(c);
+    if(!ok){
+      card.onclick=(function(ac){ return function(){ openSignin(ac); }; })(c);
+    } else {
+      var rec=SS.records.find(function(r){ return r.name===c.name; });
+      var soBtn=document.createElement('button');
+      soBtn.className='btn btn-ghost';
+      soBtn.style.cssText='font-size:clamp(9px,1.2vw,12px);padding:4px 10px;margin-top:8px;border-color:var(--border2)';
+      soBtn.textContent=rec&&rec.signedOutAt?('Out: '+fmt12(rec.signedOutAt)):'↩ Sign Out';
+      if(!rec||!rec.signedOutAt){
+        soBtn.onclick=(function(ac){ return function(e){ e.stopPropagation(); confirmSignout(ac); }; })(c);
+      } else {
+        soBtn.disabled=true; soBtn.style.opacity='.5';
+      }
+      card.appendChild(soBtn);
+    }
     gv.appendChild(card);
   });
 }
@@ -319,14 +333,30 @@ sigCanvas.addEventListener('pointerleave',function(){ sigDrawing=false; });
 function confirmSignin(){
   if(!curActor) return;
   var t=nowStr();
-  SS.records.push({name:curActor.name, role:curActor.role||'', callTime:curActor.callTime||'', signedAt:t, timestamp:Date.now()});
+  SS.records.push({name:curActor.name, role:curActor.role||'', callTime:curActor.callTime||'', signedAt:t, signedOutAt:null, timestamp:Date.now()});
   save();
   document.getElementById('signin-view').style.display='none';
+  document.getElementById('sv-icon').textContent='✓';
   document.getElementById('sv-name').textContent=curActor.name;
   document.getElementById('sv-signed').textContent='Signed in at '+t;
+  document.getElementById('sv-msg').textContent='Thank you! Please see a PA.';
   var sv=document.getElementById('success-view');
   sv.style.display='flex';
   setTimeout(function(){ sv.style.display='none'; curActor=null; renderGrid(); }, 2800);
+}
+
+function confirmSignout(actor){
+  var rec=SS.records.find(function(r){ return r.name===actor.name; });
+  if(!rec||rec.signedOutAt) return;
+  rec.signedOutAt=nowStr();
+  save();
+  document.getElementById('sv-icon').textContent='↩';
+  document.getElementById('sv-name').textContent=actor.name;
+  document.getElementById('sv-signed').textContent='Signed out at '+rec.signedOutAt;
+  document.getElementById('sv-msg').textContent='Have a great rest of your day!';
+  var sv=document.getElementById('success-view');
+  sv.style.display='flex';
+  setTimeout(function(){ sv.style.display='none'; renderGrid(); }, 2500);
 }
 
 // ─── SETUP ───────────────────────────────────────────────────────────
