@@ -159,6 +159,26 @@ table.sg td.data.anc{background:rgba(240,192,64,.17);box-shadow:inset 0 0 0 2px 
 .spin{width:10px;height:10px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
 @keyframes sp{to{transform:rotate(360deg)}}
 
+/* SCHEDULE TABS */
+.sched-tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-family:var(--font);font-size:11px;font-weight:500;padding:8px 16px;cursor:pointer;transition:color .12s,border-color .12s}
+.sched-tab:hover{color:var(--text)}
+.sched-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* COMPARE TABLE */
+.cmp-wrap{padding:8px;overflow:auto}
+.cmp-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.cmp-tbl th{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:5px 7px;border-bottom:2px solid var(--border);text-align:left;white-space:nowrap;position:sticky;top:0;background:var(--bg2)}
+.cmp-tbl td{padding:4px 7px;border-bottom:1px solid var(--border);vertical-align:middle;line-height:1.35}
+.cmp-tbl tr:hover td{background:var(--bg3)}
+.cmp-sc{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent);white-space:nowrap}
+.cmp-div{width:1px;background:var(--border2);padding:0!important}
+.cmp-ok{color:var(--text)}
+.cmp-diff{color:var(--warn);background:rgba(240,160,64,.1);border-radius:2px;padding:1px 3px}
+.cmp-miss{color:var(--danger);font-family:var(--mono);font-size:9px;opacity:.7;font-style:italic}
+.cmp-lunch{background:var(--bg3);opacity:.5}
+.cmp-hdr-strip{background:rgba(240,192,64,.05)}
+.cmp-hdr-ss{background:rgba(76,175,125,.05)}
+
 /* SCHEDULE */
 .sched-list{padding:9px;display:flex;flex-direction:column;gap:5px}
 .sc-row{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:9px 13px 9px 6px;display:grid;grid-template-columns:22px 56px 1fr auto auto 28px;gap:7px;align-items:center;transition:border-color .12s}
@@ -466,8 +486,12 @@ table.dood td.nc.checked{color:var(--success)}
       <div class="pb"><div id="sched-list" class="sched-list"><div class="nt">Upload strip schedule to see scene order</div></div></div>
     </div>
     <div class="panel">
-      <div class="ph2"><span class="pt">Upload Schedules</span></div>
-      <div class="pb">
+      <div class="ph2" style="gap:0;padding:0">
+        <button class="sched-tab active" id="stab-upload" onclick="schedTab('upload')">Upload</button>
+        <button class="sched-tab" id="stab-compare" onclick="schedTab('compare')">Compare</button>
+      </div>
+      <!-- UPLOAD TAB -->
+      <div id="sched-tab-upload" class="pb">
         <div style="padding:10px;display:flex;flex-direction:column;gap:10px">
           <div>
             <div class="pt" style="margin-bottom:6px;padding:0 1px">1 · Strip Schedule (upload first — has est. times)</div>
@@ -488,9 +512,13 @@ table.dood td.nc.checked{color:var(--success)}
             <div class="pstat" id="ss-status"></div>
           </div>
         </div>
-        <div id="sched-flags-wrap" style="display:none;margin-top:4px;padding:10px 12px;background:rgba(240,160,64,.07);border:1px solid rgba(240,160,64,.2);border-radius:4px;margin:8px 10px 0">
+        <div id="sched-flags-wrap" style="display:none;padding:10px 12px;background:rgba(240,160,64,.07);border:1px solid rgba(240,160,64,.2);border-radius:4px;margin:0 10px 10px">
           <div id="sched-flags"></div>
         </div>
+      </div>
+      <!-- COMPARE TAB -->
+      <div id="sched-tab-compare" class="pb" style="display:none">
+        <div id="sched-compare"><div class="nt">Upload both schedules to compare</div></div>
       </div>
     </div>
   </div>
@@ -1476,7 +1504,7 @@ function mergeSchedules(){
   });
   S.currentSceneIdx=-1;
   S.scenesReordered=false;
-  if(ssData)crossReference();
+  if(ssData){crossReference();renderSchedCompare();}
   renderSched();renderSceneStrip();renderSchedFlags();save();
 }
 
@@ -1684,6 +1712,105 @@ function crossReference(){
       S.schedFlags.push({type:'missing_strip',nums:ss.nums,set:ss.set});
     }
   });
+}
+
+function schedTab(t){
+  document.getElementById('sched-tab-upload').style.display=t==='upload'?'':'none';
+  document.getElementById('sched-tab-compare').style.display=t==='compare'?'':'none';
+  document.getElementById('stab-upload').classList.toggle('active',t==='upload');
+  document.getElementById('stab-compare').classList.toggle('active',t==='compare');
+}
+
+function renderSchedCompare(){
+  var wrap=document.getElementById('sched-compare');
+  if(!wrap)return;
+  if(!stripData||!ssData){wrap.innerHTML='<div class="nt">Upload both schedules to compare</div>';return;}
+
+  var stripScenes=stripData.filter(function(s){return s.type==='scene';});
+  var usedSS=new Set();
+
+  // Build merged rows: each has {stripItem, ssItem, flags[]}
+  var rows=[];
+  stripData.forEach(function(item){
+    if(item.type==='lunch'){rows.push({lunch:true,time:item.startTime,dur:item.duration||30});return;}
+    var si=ssData.findIndex(function(s){return!usedSS.has(s)&&numsMatch(item.nums,s.nums);});
+    var ss=si>=0?ssData[si]:null;
+    if(si>=0)usedSS.add(ssData[si]);
+    var flags=[];
+    if(!ss){flags.push('missing_ss');}
+    else{
+      if(!setsMatch(item.set,ss.set))flags.push('set');
+      if(item.intExt&&ss.intExt&&normIntExt(item.intExt)!==normIntExt(ss.intExt))flags.push('intExt');
+      if(item.dn&&ss.dn&&normDN(item.dn)!==normDN(ss.dn))flags.push('dn');
+      if(item.pages&&ss.pages&&normPages(item.pages)!==normPages(ss.pages))flags.push('pages');
+    }
+    rows.push({strip:item,ss:ss,flags:flags});
+  });
+  // SS scenes not matched
+  ssData.forEach(function(ss){
+    if(!usedSS.has(ss))rows.push({strip:null,ss:ss,flags:['missing_strip']});
+  });
+
+  function cell(stripVal,ssVal,flagName,flags){
+    var diff=flags.indexOf(flagName)>=0;
+    var sv=stripVal||'—', sv2=ssVal||'—';
+    var sc=diff?'cmp-diff':'cmp-ok', sc2=diff?'cmp-diff':'cmp-ok';
+    return'<td class="'+sc+'">'+esc(sv)+'</td><td class="'+sc2+'">'+esc(sv2)+'</td>';
+  }
+
+  var html='<div class="cmp-wrap"><table class="cmp-tbl"><thead><tr>'+
+    '<th rowspan="2">Sc#</th>'+
+    '<th colspan="2" class="cmp-hdr-strip" style="text-align:center;border-left:2px solid var(--border2)">Set Name</th>'+
+    '<th colspan="2" style="text-align:center;border-left:1px solid var(--border)">INT/EXT</th>'+
+    '<th colspan="2" style="text-align:center;border-left:1px solid var(--border)">D/N</th>'+
+    '<th colspan="2" style="text-align:center;border-left:1px solid var(--border)">Pages</th>'+
+    '<th rowspan="2"></th>'+
+    '</tr><tr>'+
+    '<th class="cmp-hdr-strip" style="border-left:2px solid var(--border2)">Strip</th><th class="cmp-hdr-ss">Sched</th>'+
+    '<th style="border-left:1px solid var(--border)">Strip</th><th class="cmp-hdr-ss">Sched</th>'+
+    '<th style="border-left:1px solid var(--border)">Strip</th><th class="cmp-hdr-ss">Sched</th>'+
+    '<th style="border-left:1px solid var(--border)">Strip</th><th class="cmp-hdr-ss">Sched</th>'+
+    '</tr></thead><tbody>';
+
+  rows.forEach(function(r){
+    if(r.lunch){
+      html+='<tr class="cmp-lunch"><td colspan="9" style="font-family:var(--mono);font-size:9px;text-align:center;letter-spacing:.05em">── LUNCH '+r.time+' · '+r.dur+'min ──</td><td></td></tr>';
+      return;
+    }
+    var hasFlag=r.flags.length>0;
+    var isMissSS=r.flags.indexOf('missing_ss')>=0;
+    var isMissStrip=r.flags.indexOf('missing_strip')>=0;
+    var rowStyle=hasFlag?'background:rgba(240,160,64,.05)':'';
+    var sc=r.strip||r.ss;
+    var statusIcon=hasFlag?'<span style="color:var(--warn);font-size:11px" title="'+r.flags.join(', ')+'">⚠</span>':'<span style="color:var(--success);font-size:11px">✓</span>';
+
+    html+='<tr style="'+rowStyle+'">';
+    html+='<td class="cmp-sc">'+(r.strip?esc(r.strip.nums):('<span class="cmp-miss">'+esc(r.ss.nums)+'</span>'))+'</td>';
+    if(isMissSS){
+      html+='<td class="cmp-ok">'+esc(r.strip.set)+'</td><td class="cmp-miss">not in sched</td>';
+      html+='<td class="cmp-ok">'+esc(r.strip.intExt)+'</td><td class="cmp-miss">—</td>';
+      html+='<td class="cmp-ok">'+esc(r.strip.dn)+'</td><td class="cmp-miss">—</td>';
+      html+='<td class="cmp-ok">'+esc(r.strip.pages)+'</td><td class="cmp-miss">—</td>';
+    } else if(isMissStrip){
+      html+='<td class="cmp-miss">not in strip</td><td class="cmp-ok">'+esc(r.ss.set)+'</td>';
+      html+='<td class="cmp-miss">—</td><td class="cmp-ok">'+esc(r.ss.intExt)+'</td>';
+      html+='<td class="cmp-miss">—</td><td class="cmp-ok">'+esc(r.ss.dn)+'</td>';
+      html+='<td class="cmp-miss">—</td><td class="cmp-ok">'+esc(r.ss.pages)+'</td>';
+    } else {
+      html+=cell(r.strip.set,r.ss.set,'set',r.flags);
+      html+=cell(r.strip.intExt,r.ss.intExt,'intExt',r.flags);
+      html+=cell(r.strip.dn,r.ss.dn,'dn',r.flags);
+      html+=cell(r.strip.pages,r.ss.pages,'pages',r.flags);
+    }
+    html+='<td style="text-align:center">'+statusIcon+'</td>';
+    html+='</tr>';
+  });
+
+  html+='</tbody></table></div>';
+  wrap.innerHTML=html;
+
+  // Auto-switch to compare tab if there are flags
+  if(S.schedFlags&&S.schedFlags.length)schedTab('compare');
 }
 
 function renderSchedFlags(){
