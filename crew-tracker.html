@@ -271,6 +271,7 @@ table.dood td.nc.checked{color:var(--success)}
     <div class="bsep"></div>
     <div class="bpair"><span class="bl">Scene</span><span class="bv dim" id="b-scene">—</span></div>
     <div id="wx-wrap"><span class="wx-icon" id="wx-icon"></span><div><div class="wx-temp" id="wx-temp"></div><div class="wx-sub" id="wx-desc"></div></div></div>
+    <button onclick="openSettings()" title="API Key Settings" style="margin-left:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-size:11px;padding:3px 9px;border-radius:var(--radius);cursor:pointer;white-space:nowrap;flex-shrink:0">⚙ Settings</button>
   </div>
   <div id="b2">
     <div id="scene-strip" style="display:flex;align-items:center;gap:4px"></div>
@@ -1080,16 +1081,32 @@ function refreshCastTimers(){
     var cs=fmtTime(e.cd),ws=fmtTime(e.wt);
     var cm=state==='ok'?mw:mc;
     var lbl=state==='past'?'CALLED':state==='warning'?'WARN':'UPCOMING';
-    var names=e.members.map(function(m){
-      var badge=m.arrived?'<span style="font-family:var(--mono);font-size:9px;padding:1px 4px;background:rgba(76,175,125,.2);color:var(--success);border-radius:2px;margin-left:4px">✓ '+m.arrivedAt+'</span>':'';
-      return'<span>'+esc(m.name)+(m.role?'<span class="rt">'+esc(m.role)+'</span>':'')+badge+'</span>';
-    }).join(', ');
     var iso=e.iso?'<span style="font-family:var(--mono);font-size:9px;padding:1px 5px;background:var(--bg4);color:var(--text3);border-radius:2px;margin-left:5px">ISOLATED</span>':'';
     var card=document.createElement('div');card.className='tc '+state;
-    card.innerHTML='<div class="tr">Call '+cs+' − '+wm+'min warn @ '+ws+iso+'</div>'+
-      '<div class="tn">'+names+'</div>'+
-      '<div class="tb"><div class="tc3">Call: <strong>'+cs+'</strong></div>'+
-      '<div style="display:flex;align-items:baseline;gap:8px"><div class="tcd '+state+'">'+fmtMs(cm)+'</div><div class="tl '+state+'">'+lbl+'</div></div></div>';
+    var trDiv=document.createElement('div');trDiv.className='tr';trDiv.innerHTML='Call '+cs+' − '+wm+'min warn @ '+ws+iso;
+    card.appendChild(trDiv);
+    var tnDiv=document.createElement('div');tnDiv.className='tn';
+    e.members.forEach(function(m,mi){
+      if(mi>0){tnDiv.appendChild(document.createTextNode(', '));}
+      var sp=document.createElement('span');
+      sp.style.cssText='border-radius:3px;padding:1px 5px;transition:background .1s;display:inline-flex;align-items:center;gap:4px;'+(m.arrived?'opacity:.65':'cursor:pointer');
+      sp.appendChild(document.createTextNode(m.name));
+      if(m.role){var rs=document.createElement('span');rs.className='rt';rs.textContent=m.role;sp.appendChild(rs);}
+      if(m.arrived){
+        var ab=document.createElement('span');
+        ab.style.cssText='font-family:var(--mono);font-size:9px;padding:1px 4px;background:rgba(76,175,125,.2);color:var(--success);border-radius:2px';
+        ab.textContent='✓ '+m.arrivedAt;sp.appendChild(ab);
+      } else {
+        sp.addEventListener('mouseenter',function(){this.style.background='rgba(240,192,64,.13)';});
+        sp.addEventListener('mouseleave',function(){this.style.background='';});
+        sp.addEventListener('click',(function(mem){return function(ev){ev.stopPropagation();stampArrival(mem,'cast');};})(m));
+      }
+      tnDiv.appendChild(sp);
+    });
+    card.appendChild(tnDiv);
+    var tbDiv=document.createElement('div');tbDiv.className='tb';
+    tbDiv.innerHTML='<div class="tc3">Call: <strong>'+cs+'</strong></div><div style="display:flex;align-items:baseline;gap:8px"><div class="tcd '+state+'">'+fmtMs(cm)+'</div><div class="tl '+state+'">'+lbl+'</div></div>';
+    card.appendChild(tbDiv);
     wrap.appendChild(card);
   });
 }
@@ -1105,18 +1122,46 @@ var ctxTarget = null, ctxType = null;
 function renderCastArrivals(){
   var wrap=document.getElementById('cast-arrivals');
   wrap.innerHTML='';
-  if(!S.cast.length){wrap.innerHTML='<div class="nt">No cast loaded</div>';return;}
-  S.cast.filter(function(r){return r.name;}).forEach(function(r){
+  var list=S.cast.filter(function(r){return r.name;});
+  if(!list.length){wrap.innerHTML='<div class="nt">No cast loaded</div>';return;}
+  var allIn=list.every(function(r){return r.arrived;});
+  var hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:4px 10px 4px;border-bottom:1px solid var(--border);gap:8px';
+  hdr.innerHTML='<span style="font-family:var(--mono);font-size:9px;color:var(--text3)">'+list.filter(function(r){return r.arrived;}).length+' / '+list.length+' in</span>';
+  var mab=document.createElement('button');
+  mab.className='btn btn-sm'+(allIn?' btn-a':'');
+  mab.textContent=allIn?'All In ✓':'Mark All In';
+  mab.onclick=function(){var now=fmtTime(new Date());list.forEach(function(r){if(!r.arrived){r.arrived=true;r.arrivedAt=now;}});renderCastArrivals();refreshCastTimers();renderDoods();save();};
+  hdr.appendChild(mab);wrap.appendChild(hdr);
+  list.forEach(function(r){
     var row=document.createElement('div');row.className='arr-row';
     var adjCall=r.adjMins?addMins(r.callTime,r.adjMins):r.callTime;
     var isLate=r.arrived&&r.arrivedAt&&adjCall&&parseTime(r.arrivedAt)>parseTime(adjCall);
-    var badge=r.arrived?(isLate?'late':'arrived'):(r.adjMins?'adj':'pending');
-    var badgeTxt=r.arrived?('✓ '+r.arrivedAt):(r.adjMins?(r.adjMins>0?'+'+r.adjMins+'min':r.adjMins+'min'):'—');
-    row.innerHTML='<div class="arr-num">'+esc(r.num)+'</div><div class="arr-name">'+esc(r.name)+'</div>'+
-      '<div class="arr-role">'+esc(r.role)+'</div><div class="arr-call">'+esc(adjCall)+'</div>'+
-      '<div class="arr-badge '+badge+'">'+badgeTxt+'</div>';
-    row.onclick=function(){ stampArrival(r,'cast'); };
-    row.oncontextmenu=function(e){ e.preventDefault(); openCtx(e,r,'cast'); };
+    var badgeCls=r.arrived?(isLate?'late':'arrived'):(r.adjMins?'adj':'pending');
+    var num=document.createElement('div');num.className='arr-num';num.textContent=r.num;
+    var name=document.createElement('div');name.className='arr-name';name.textContent=r.name;
+    var role=document.createElement('div');role.className='arr-role';role.textContent=r.role;
+    var call=document.createElement('div');call.className='arr-call';call.textContent=adjCall;
+    var badge=document.createElement('div');badge.className='arr-badge '+badgeCls;
+    if(r.arrived){
+      badge.textContent='✓ '+r.arrivedAt;
+      badge.title='Click to edit time';
+      badge.style.cursor='pointer';
+      badge.onclick=function(e){
+        e.stopPropagation();
+        var inp=document.createElement('input');
+        inp.type='text';inp.value=r.arrivedAt;
+        inp.style.cssText='width:58px;font-family:var(--mono);font-size:10px;background:var(--bg4);border:1px solid var(--accent);color:var(--text);border-radius:3px;padding:1px 4px;outline:none';
+        badge.replaceWith(inp);inp.focus();inp.select();
+        function commit(){var v=normTime(inp.value.trim());if(v){r.arrivedAt=v;}var nb=document.createElement('div');nb.className='arr-badge '+badgeCls;nb.textContent='✓ '+(r.arrivedAt);nb.title='Click to edit time';nb.style.cursor='pointer';inp.replaceWith(nb);renderCastArrivals();refreshCastTimers();save();}
+        inp.onblur=commit;inp.onkeydown=function(ev){if(ev.key==='Enter'||ev.key==='Escape')commit();};
+      };
+    } else {
+      badge.textContent=r.adjMins?(r.adjMins>0?'+'+r.adjMins+'min':r.adjMins+'min'):'—';
+    }
+    row.appendChild(num);row.appendChild(name);row.appendChild(role);row.appendChild(call);row.appendChild(badge);
+    row.onclick=function(){stampArrival(r,'cast');};
+    row.oncontextmenu=function(e){e.preventDefault();openCtx(e,r,'cast');};
     wrap.appendChild(row);
   });
 }
@@ -1221,12 +1266,31 @@ function refreshCrewTimers(){
     var cs=fmtTime(e.cd),ws=fmtTime(e.wt);
     var cm=state==='ok'?mw:mc;
     var lbl=state==='past'?'CALLED':state==='warning'?'WARN':'UPCOMING';
-    var names=e.members.map(function(m){return'<span>'+esc(m.name)+(m.title?'<span class="rt">'+esc(m.title)+'</span>':'')+'</span>';}).join(', ');
     var card=document.createElement('div');card.className='tc '+state;
-    card.innerHTML='<div class="tr">Call '+cs+' − '+wm+'min warn @ '+ws+'</div>'+
-      '<div class="tn">'+names+'</div>'+
-      '<div class="tb"><div class="tc3">Call: <strong>'+cs+'</strong></div>'+
-      '<div style="display:flex;align-items:baseline;gap:8px"><div class="tcd '+state+'">'+fmtMs(cm)+'</div><div class="tl '+state+'">'+lbl+'</div></div></div>';
+    var trDiv=document.createElement('div');trDiv.className='tr';trDiv.textContent='Call '+cs+' − '+wm+'min warn @ '+ws;
+    card.appendChild(trDiv);
+    var tnDiv=document.createElement('div');tnDiv.className='tn';
+    e.members.forEach(function(m,mi){
+      if(mi>0){tnDiv.appendChild(document.createTextNode(', '));}
+      var sp=document.createElement('span');
+      sp.style.cssText='border-radius:3px;padding:1px 5px;transition:background .1s;display:inline-flex;align-items:center;gap:4px;'+(m.arrived?'opacity:.65':'cursor:pointer');
+      sp.appendChild(document.createTextNode(m.name));
+      if(m.title){var ts=document.createElement('span');ts.className='rt';ts.textContent=m.title;sp.appendChild(ts);}
+      if(m.arrived){
+        var ab=document.createElement('span');
+        ab.style.cssText='font-family:var(--mono);font-size:9px;padding:1px 4px;background:rgba(76,175,125,.2);color:var(--success);border-radius:2px';
+        ab.textContent='✓ '+m.arrivedAt;sp.appendChild(ab);
+      } else {
+        sp.addEventListener('mouseenter',function(){this.style.background='rgba(240,192,64,.13)';});
+        sp.addEventListener('mouseleave',function(){this.style.background='';});
+        sp.addEventListener('click',(function(mem){return function(ev){ev.stopPropagation();stampArrival(mem,'crew');};})(m));
+      }
+      tnDiv.appendChild(sp);
+    });
+    card.appendChild(tnDiv);
+    var tbDiv=document.createElement('div');tbDiv.className='tb';
+    tbDiv.innerHTML='<div class="tc3">Call: <strong>'+cs+'</strong></div><div style="display:flex;align-items:baseline;gap:8px"><div class="tcd '+state+'">'+fmtMs(cm)+'</div><div class="tl '+state+'">'+lbl+'</div></div>';
+    card.appendChild(tbDiv);
     wrap.appendChild(card);
   });
 }
@@ -1234,17 +1298,41 @@ function refreshCrewTimers(){
 function renderCrewArrivals(){
   var wrap=document.getElementById('crew-arrivals');
   wrap.innerHTML='';
-  var filtered=S.crew.filter(function(r){return r.name;});
-  if(!filtered.length){wrap.innerHTML='<div class="nt">No crew loaded</div>';return;}
-  filtered.forEach(function(r){
+  var list=S.crew.filter(function(r){return r.name;});
+  if(!list.length){wrap.innerHTML='<div class="nt">No crew loaded</div>';return;}
+  var allIn=list.every(function(r){return r.arrived;});
+  var hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:4px 10px 4px;border-bottom:1px solid var(--border);gap:8px';
+  hdr.innerHTML='<span style="font-family:var(--mono);font-size:9px;color:var(--text3)">'+list.filter(function(r){return r.arrived;}).length+' / '+list.length+' in</span>';
+  var mab=document.createElement('button');
+  mab.className='btn btn-sm'+(allIn?' btn-a':'');
+  mab.textContent=allIn?'All In ✓':'Mark All In';
+  mab.onclick=function(){var now=fmtTime(new Date());list.forEach(function(r){if(!r.arrived){r.arrived=true;r.arrivedAt=now;}});renderCrewArrivals();refreshCrewTimers();renderDoods();save();};
+  hdr.appendChild(mab);wrap.appendChild(hdr);
+  list.forEach(function(r){
     var row=document.createElement('div');row.className='arr-row';
     var adjCall=r.adjMins?addMins(r.callTime,r.adjMins):r.callTime;
-    var badge=r.arrived?'arrived':(r.adjMins?'adj':'pending');
-    var badgeTxt=r.arrived?('✓ '+r.arrivedAt):(r.adjMins?(r.adjMins>0?'+'+r.adjMins:''+r.adjMins)+'min':'—');
-    row.innerHTML='<div class="arr-name" style="min-width:120px;flex:none">'+esc(r.dept)+'</div>'+
-      '<div class="arr-name">'+esc(r.name)+'</div>'+
-      '<div class="arr-call">'+esc(adjCall)+'</div>'+
-      '<div class="arr-badge '+badge+'">'+badgeTxt+'</div>';
+    var badgeCls=r.arrived?'arrived':(r.adjMins?'adj':'pending');
+    var dept=document.createElement('div');dept.className='arr-name';dept.style.cssText='min-width:120px;flex:none';dept.textContent=r.dept;
+    var name=document.createElement('div');name.className='arr-name';name.textContent=r.name;
+    var call=document.createElement('div');call.className='arr-call';call.textContent=adjCall;
+    var badge=document.createElement('div');badge.className='arr-badge '+badgeCls;
+    if(r.arrived){
+      badge.textContent='✓ '+r.arrivedAt;
+      badge.title='Click to edit time';badge.style.cursor='pointer';
+      badge.onclick=function(e){
+        e.stopPropagation();
+        var inp=document.createElement('input');
+        inp.type='text';inp.value=r.arrivedAt;
+        inp.style.cssText='width:58px;font-family:var(--mono);font-size:10px;background:var(--bg4);border:1px solid var(--accent);color:var(--text);border-radius:3px;padding:1px 4px;outline:none';
+        badge.replaceWith(inp);inp.focus();inp.select();
+        function commit(){var v=normTime(inp.value.trim());if(v)r.arrivedAt=v;var nb=document.createElement('div');nb.className='arr-badge '+badgeCls;nb.textContent='✓ '+r.arrivedAt;nb.title='Click to edit time';nb.style.cursor='pointer';inp.replaceWith(nb);renderCrewArrivals();refreshCrewTimers();save();}
+        inp.onblur=commit;inp.onkeydown=function(ev){if(ev.key==='Enter'||ev.key==='Escape')commit();};
+      };
+    } else {
+      badge.textContent=r.adjMins?(r.adjMins>0?'+'+r.adjMins+'min':r.adjMins+'min'):'—';
+    }
+    row.appendChild(dept);row.appendChild(name);row.appendChild(call);row.appendChild(badge);
     row.onclick=function(){stampArrival(r,'crew');renderCrewArrivals();};
     row.oncontextmenu=function(e){e.preventDefault();openCtx(e,r,'crew');};
     wrap.appendChild(row);
@@ -1456,43 +1544,77 @@ function renderDoodDeptList(){
   });
 }
 
+function getTodayDood(){
+  // Match today's date to a shoot day, fall back to next upcoming day
+  var now=new Date();
+  var mm=String(now.getMonth()+1).padStart(2,'0');
+  var dd=String(now.getDate()).padStart(2,'0');
+  var todayStr=mm+'/'+dd;
+  // Gather all days from any loaded DOOD
+  var allDays=[];
+  S.doods.forEach(function(dept){(dept.days||[]).forEach(function(d){if(d.date&&!allDays.find(function(x){return x.date===d.date;}))allDays.push(d);});});
+  allDays.sort(function(a,b){return a.shootDay-b.shootDay;});
+  var match=allDays.find(function(d){return d.date===todayStr;});
+  if(match)return match;
+  // No exact match — return next upcoming shoot day
+  var future=allDays.filter(function(d){
+    var p=d.date.split('/');var dt=new Date(now.getFullYear(),parseInt(p[0])-1,parseInt(p[1]));return dt>=now;
+  });
+  return future[0]||allDays[allDays.length-1]||null;
+}
+
+function codeClass(code){
+  if(!code)return'';
+  if(code==='W')return'dw';
+  if(code==='WF')return'dwf';
+  if(code==='H')return'dh';
+  if(code.indexOf('S')===0)return'dsw';
+  return'';
+}
+
 function renderDoods(){
   var wrap=document.getElementById('dood-content');
   if(!S.doods.length){wrap.innerHTML='<div class="nt">Upload department DOODs to see combined view</div>';return;}
   wrap.innerHTML='';
+  var today=getTodayDood();
+  // Day header bar
+  var dayBar=document.createElement('div');
+  dayBar.style.cssText='display:flex;align-items:center;gap:10px;padding:7px 12px;background:var(--bg3);border-bottom:1px solid var(--border);margin-bottom:8px';
+  dayBar.innerHTML='<span style="font-family:var(--cond);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)">Shoot Day '+
+    (today?today.shootDay:'?')+'</span>'+
+    '<span style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+(today?today.date+' · '+today.dayOfWeek:'No matching date')+'</span>'+
+    '<span style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-left:auto">Showing today only · check-in synced</span>';
+  wrap.appendChild(dayBar);
   S.doods.forEach(function(dept){
+    // Filter to only items working today
+    var days=dept.days||[];
+    var todayEntry=today?days.find(function(d){return d.date===today.date;}):null;
+    var activeItems=dept.items.filter(function(item){
+      if(!today)return true;
+      var code=item.codes?item.codes[today.date]||'':'';
+      return code!=='';
+    });
+    if(!activeItems.length)return; // skip dept with nobody working today
     var sec=document.createElement('div');sec.className='dood-dept';
     var hdr=document.createElement('div');hdr.className='dood-dept-hdr';
-    hdr.innerHTML='<span>'+esc(dept.dept)+'</span><span class="dept-badge">'+dept.items.length+' items</span>';
+    hdr.innerHTML='<span>'+esc(dept.dept)+'</span><span class="dept-badge">'+activeItems.length+' today</span>';
     sec.appendChild(hdr);
     var tw=document.createElement('div');tw.className='dood-tbl-wrap';
-    var days=dept.days||[];
     var t=document.createElement('table');t.className='dood';
-    // header
-    var hrow='<tr><th class="nc">Name</th>';
-    days.forEach(function(d){hrow+='<th title="'+esc(d.date)+'">'+esc(d.date||'')+'<br><span style="font-size:8px;color:var(--text3)">Day '+d.shootDay+'</span></th>';});
-    hrow+='<th>Start</th><th>Finish</th><th>Total</th></tr>';
-    t.innerHTML='<thead>'+hrow+'</thead>';
+    t.innerHTML='<thead><tr><th class="nc">Name</th><th style="width:52px">Code</th><th>Status</th><th>Start</th><th>Finish</th><th>Total</th></tr></thead>';
     var tbody=document.createElement('tbody');
-    dept.items.forEach(function(item){
-      var tr=document.createElement('tr');
-      // check if this person is checked in (from cast/crew)
+    activeItems.forEach(function(item){
+      var code=today&&item.codes?item.codes[today.date]||'':'';
       var isChecked=false;
       S.cast.forEach(function(c){if(c.arrived&&c.name&&item.name&&c.name.toLowerCase()===item.name.toLowerCase())isChecked=true;});
       S.crew.forEach(function(c){if(c.arrived&&c.name&&item.name&&c.name.toLowerCase()===item.name.toLowerCase())isChecked=true;});
+      var tr=document.createElement('tr');
       var td0=document.createElement('td');td0.className='nc'+(isChecked?' checked':'');td0.textContent=item.name;tr.appendChild(td0);
-      days.forEach(function(d){
-        var code=item.codes?item.codes[d.date]||'':'';
-        var td=document.createElement('td');
-        var cls='';
-        if(code==='W')cls='dw';
-        else if(code==='SW'||code==='SWF'&&code.indexOf('S')===0)cls='dsw';
-        else if(code==='WF')cls='dwf';
-        else if(code==='H')cls='dh';
-        if(code==='SWF')cls='dsw';
-        if(isChecked&&code)cls+=' checked-cell';
-        td.className=cls;td.textContent=code;tr.appendChild(td);
-      });
+      var tdc=document.createElement('td');var cc=codeClass(code);if(isChecked&&code)cc+=' checked-cell';tdc.className=cc;tdc.textContent=code;tr.appendChild(tdc);
+      var tds=document.createElement('td');
+      if(isChecked){tds.innerHTML='<span style="font-family:var(--mono);font-size:10px;color:var(--success)">✓ In</span>';}
+      else{tds.innerHTML='<span style="font-family:var(--mono);font-size:10px;color:var(--text3)">—</span>';}
+      tr.appendChild(tds);
       var ts=document.createElement('td');ts.textContent=item.start||'';tr.appendChild(ts);
       var tf=document.createElement('td');tf.textContent=item.finish||'';tr.appendChild(tf);
       var tt=document.createElement('td');tt.textContent=item.total||'';tr.appendChild(tt);
