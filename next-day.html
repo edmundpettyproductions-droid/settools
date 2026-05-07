@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Next Day Prep · Set Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0b14;--bg2:#151020;--bg3:#1d1830;--bg4:#261f3e;
+  --border:#2a2245;--border2:#3e3360;
+  --text:#ece8ff;--text2:#9b8fd4;--text3:#5a4f90;
+  --accent:#a78bfa;--accent2:#7c3aed;--success:#34d399;--danger:#e05a5a;--warn:#f0a040;
+  --radius:6px;--font:'Barlow',sans-serif;--mono:'DM Mono',monospace;--cond:'Barlow Condensed',sans-serif;
+  --hh:58px;--nh:44px;--top:102px;
+}
+*{font-family:var(--font);font-size:13px}
+body{background:var(--bg);color:var(--text);min-height:100vh}
+button{cursor:pointer}a{text-decoration:none}
+
+/* HEADER */
+#hdr{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--bg2);border-bottom:2px solid var(--border2);display:flex;align-items:center;gap:14px;padding:0 18px;height:var(--hh)}
+#hdr-title{font-family:var(--cond);font-size:21px;font-weight:700;letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+#hdr-badge{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:3px;background:rgba(167,139,250,.15);color:var(--accent);border:1px solid rgba(167,139,250,.3);letter-spacing:.05em}
+#hdr-tomorrow{font-family:var(--mono);font-size:11px;color:var(--text2);flex:1}
+
+/* TAB NAV */
+#tab-nav{position:fixed;top:var(--hh);left:0;right:0;z-index:100;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;height:var(--nh);gap:2px}
+.tab-btn{padding:5px 14px;border-radius:var(--radius);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;letter-spacing:.02em;transition:color .12s,background .12s;border:none;background:none;white-space:nowrap}
+.tab-btn:hover{background:var(--bg3);color:var(--text)}
+.tab-btn.active{background:rgba(167,139,250,.15);color:var(--accent)}
+
+/* MAIN AREA */
+#main{position:fixed;top:var(--top);left:0;right:0;bottom:0;overflow-y:auto}
+.tab-panel{display:none;padding:20px;min-height:100%}
+.tab-panel.active{display:block}
+
+/* BUTTONS */
+.btn{padding:7px 14px;border-radius:var(--radius);border:1px solid;cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.02em;transition:all .12s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-purple{background:var(--accent);color:#0d0b14;border-color:var(--accent)}
+.btn-purple:hover{background:var(--accent2);border-color:var(--accent2)}
+.btn-ghost{background:transparent;color:var(--text2);border-color:var(--border2)}
+.btn-ghost:hover{background:var(--bg3);color:var(--text);border-color:var(--accent)}
+.btn-sm{padding:4px 10px;font-size:11px}
+
+/* UPLOAD ZONE */
+.upload-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:var(--bg2)}
+.upload-zone:hover,.upload-zone.over{border-color:var(--accent);background:rgba(167,139,250,.06)}
+.upload-zone h3{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px}
+.upload-zone p{font-size:12px;color:var(--text2)}
+input[type=file]{display:none}
+
+/* FORM ELEMENTS */
+.fld{margin-bottom:14px}
+lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);display:block;margin-bottom:4px}
+.inp{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:7px 10px;font-size:13px;outline:none}
+.inp:focus{border-color:var(--accent)}
+.ta{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:8px 10px;font-size:13px;outline:none;resize:vertical;line-height:1.5}
+.ta:focus{border-color:var(--accent)}
+.ta.mono{font-family:var(--mono);font-size:12px}
+
+/* STATUS PILLS */
+.status{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--radius);font-size:12px;font-weight:600}
+.status.loading{background:rgba(167,139,250,.12);color:var(--accent)}
+.status.ok{background:rgba(52,211,153,.12);color:var(--success)}
+.status.err{background:rgba(224,90,90,.12);color:var(--danger)}
+.spin{display:inline-block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* SECTION HEADERS */
+.sec-hdr{font-family:var(--cond);font-size:14px;font-weight:700;letter-spacing:.06em;color:var(--accent);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+/* ── TAB 1: SCHEDULE ── */
+#sched-grid{display:grid;gap:8px;margin-top:16px}
+.sched-row{display:grid;grid-template-columns:60px 1fr 50px 50px 60px 80px;gap:8px;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px}
+.sched-row.lunch-row{background:none;border:none;color:var(--text3);font-size:11px;padding:4px 12px;font-family:var(--mono)}
+.sched-row.hdr-row{background:none;border:none;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);padding:0 12px}
+.sr-num{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent)}
+.sr-set{font-size:12px;font-weight:600;color:var(--text)}
+.sr-ie{font-size:11px;color:var(--text2);text-align:center}
+.sr-dn{font-size:11px;color:var(--text2);text-align:center}
+.sr-pg{font-family:var(--mono);font-size:11px;color:var(--text2);text-align:center}
+.sr-time{font-family:var(--mono);font-size:12px;color:var(--text);text-align:right}
+.call-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;display:flex;flex-direction:column;gap:3px}
+.call-card-name{font-size:13px;font-weight:600;color:var(--text)}
+.call-card-role{font-size:11px;color:var(--text2)}
+.call-card-time{font-family:var(--mono);font-size:12px;color:var(--accent);margin-top:2px}
+
+/* ── TAB 2: WEATHER ── */
+#wx-main{margin-top:16px;display:none}
+.wx-hero{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:24px 28px;display:flex;align-items:center;gap:32px;flex-wrap:wrap;margin-bottom:16px}
+.wx-icon-big{font-size:64px;line-height:1}
+.wx-temps{display:flex;flex-direction:column;gap:4px}
+.wx-hi{font-size:42px;font-weight:700;color:var(--text);font-family:var(--cond)}
+.wx-lo{font-size:20px;color:var(--text2);font-family:var(--cond)}
+.wx-cond{font-size:18px;color:var(--text2);margin-top:4px}
+.wx-stats{display:flex;gap:24px;flex-wrap:wrap}
+.wx-stat{display:flex;flex-direction:column;gap:2px}
+.wx-stat-l{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3)}
+.wx-stat-v{font-size:16px;font-weight:600;font-family:var(--mono);color:var(--accent)}
+.wx-hourly{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.wx-hour-row{display:grid;grid-template-columns:60px 2fr 1fr 80px;gap:8px;padding:7px 14px;border-bottom:1px solid rgba(42,34,69,.6);align-items:center;font-size:12px}
+.wx-hour-row:last-child{border-bottom:none}
+.wx-hour-row.hdr{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);background:var(--bg3)}
+.wx-h-time{font-family:var(--mono);color:var(--text2)}
+.wx-h-bar{background:var(--bg3);border-radius:2px;height:6px;overflow:hidden}
+.wx-h-bar-fill{height:100%;background:var(--accent);border-radius:2px;opacity:.7}
+.wx-h-temp{font-family:var(--mono);color:var(--text);text-align:right}
+
+/* ── TAB 3: EMAIL ── */
+#email-panels{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media(max-width:900px){#email-panels{grid-template-columns:1fr}}
+.email-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;overflow:hidden}
+.email-panel-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg3);flex-shrink:0}
+.email-panel-hdr span{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2)}
+.email-panel-body{flex:1;padding:12px}
+#email-output{min-height:340px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:12px;font-family:var(--mono);font-size:12px;color:var(--text);white-space:pre-wrap;line-height:1.6;overflow-y:auto}
+#email-output.placeholder{color:var(--text3);font-style:italic}
+
+/* ── TAB 4: DISTRIBUTION ── */
+#dist-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media(max-width:900px){#dist-layout{grid-template-columns:1fr}}
+.dist-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.dist-panel-hdr{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg3);display:flex;align-items:center;justify-content:space-between}
+.dist-panel-hdr span{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2)}
+.dist-panel-body{padding:12px;display:flex;flex-direction:column;gap:8px;max-height:500px;overflow-y:auto}
+.contact-row{display:grid;grid-template-columns:1fr 90px 1fr 24px;gap:6px;align-items:center}
+.contact-row input{background:var(--bg3);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:5px 8px;outline:none;width:100%}
+.contact-row input:focus{border-color:var(--accent)}
+.rm-btn{background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;padding:3px;border-radius:3px;line-height:1}
+.rm-btn:hover{background:rgba(224,90,90,.12)}
+.contact-hdrs{display:grid;grid-template-columns:1fr 90px 1fr 24px;gap:6px;margin-bottom:2px}
+.contact-hdr{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);padding:0 2px}
+.manifest-row{display:flex;align-items:center;gap:10px;padding:6px 12px;border-bottom:1px solid rgba(42,34,69,.5)}
+.manifest-row:last-child{border-bottom:none}
+.manifest-name{flex:1;font-size:13px;font-weight:600;color:var(--text)}
+.manifest-dept{font-size:11px;color:var(--text2);width:80px}
+.manifest-email{font-family:var(--mono);font-size:11px;color:var(--success);flex:1}
+.manifest-email.missing{color:var(--danger);font-style:italic}
+
+/* OVERLAYS */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;width:min(500px,100%);max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+.mhdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.mhdr h2{font-family:var(--cond);font-size:17px;font-weight:700;color:var(--accent);letter-spacing:.04em}
+.mbody{padding:18px 20px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;flex:1}
+.mftr{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+
+/* NOTICE BOX */
+.notice{background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.25);border-radius:var(--radius);padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.6}
+.notice strong{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div id="hdr-title">⟳ Next Day Prep</div>
+  <div id="hdr-badge">ISOLATED</div>
+  <div id="hdr-tomorrow" style="flex:1;padding-left:4px"></div>
+  <a href="index.html" class="btn btn-ghost btn-sm">← Home</a>
+</div>
+
+<div id="tab-nav">
+  <button class="tab-btn active" onclick="showTab('sched')">📋 Tomorrow's Call</button>
+  <button class="tab-btn" onclick="showTab('wx')">🌤 Weather</button>
+  <button class="tab-btn" onclick="showTab('email')">✉ Email Updater</button>
+  <button class="tab-btn" onclick="showTab('dist')">📬 Distribution</button>
+</div>
+
+<div id="main">
+
+<!-- ── TAB 1: TOMORROW'S CALL ── -->
+<div class="tab-panel active" id="panel-sched">
+  <div class="notice">
+    <strong>Isolated from today's tools.</strong> Data entered here is for planning purposes only and does not affect Crew Tracker, Sign-In, or any current-day records. Upload the shooting schedule or call sheet that contains the <em>advanced schedule</em> section for tomorrow.
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+    <!-- Strip / Advanced Schedule upload -->
+    <div>
+      <div class="sec-hdr">Shooting Schedule (Advanced)</div>
+      <div class="upload-zone" id="adv-zone" onclick="document.getElementById('adv-input').click()" ondragover="ev(event);this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropAdv(event)">
+        <h3>Drop Advanced Schedule PDF</h3>
+        <p>Shooting schedule containing next day's scenes &amp; breakdown</p>
+      </div>
+      <input type="file" id="adv-input" accept=".pdf" onchange="if(this.files[0])procAdv(this.files[0]);this.value=''">
+      <div id="adv-status" style="margin-top:8px"></div>
+    </div>
+    <!-- Call sheet upload -->
+    <div>
+      <div class="sec-hdr">Call Sheet (Tomorrow's)</div>
+      <div class="upload-zone" id="cs-zone" onclick="document.getElementById('cs-input').click()" ondragover="ev(event);this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropCS(event)">
+        <h3>Drop Tomorrow's Call Sheet PDF</h3>
+        <p>Cast call times, general call, location, shooting call</p>
+      </div>
+      <input type="file" id="cs-input" accept=".pdf" onchange="if(this.files[0])procCS(this.files[0]);this.value=''">
+      <div id="cs-status" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- Output -->
+  <div id="sched-out" style="margin-top:20px;display:none">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <div class="sec-hdr" style="margin:0;border:none" id="sched-out-title">Tomorrow's Schedule</div>
+      <div id="sched-out-meta" style="font-family:var(--mono);font-size:11px;color:var(--text2)"></div>
+      <button class="btn btn-ghost btn-sm" onclick="clearTomorrow()">✕ Clear</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Scene Order</div>
+        <div class="sched-row hdr-row">
+          <div>Sc#</div><div>Set</div><div>I/E</div><div>D/N</div><div>Pages</div><div style="text-align:right">Time</div>
+        </div>
+        <div id="sched-grid"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Cast Calls</div>
+        <div id="cast-calls-grid" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+    </div>
+    <div id="prod-details" style="margin-top:16px;display:none">
+      <div class="sec-hdr">Production Details</div>
+      <div id="prod-details-body" style="display:flex;gap:24px;flex-wrap:wrap"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TAB 2: WEATHER ── -->
+<div class="tab-panel" id="panel-wx">
+  <div class="sec-hdr">Tomorrow's Weather Forecast</div>
+  <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+    <div class="fld" style="flex:1;min-width:220px;margin:0">
+      <lbl>Filming Location / Address</lbl>
+      <input class="inp" type="text" id="wx-loc" placeholder="123 Main St, Los Angeles, CA" onkeydown="if(event.key==='Enter')fetchWeather()">
+    </div>
+    <button class="btn btn-purple" onclick="fetchWeather()">Get Forecast</button>
+  </div>
+  <div id="wx-status" style="margin-top:10px"></div>
+  <div id="wx-main">
+    <div class="wx-hero">
+      <div class="wx-icon-big" id="wx-icon">☀️</div>
+      <div>
+        <div class="wx-temps">
+          <div class="wx-hi"><span id="wx-hi">—</span>°F</div>
+          <div class="wx-lo">Low: <span id="wx-lo">—</span>°F</div>
+        </div>
+        <div class="wx-cond" id="wx-cond">—</div>
+      </div>
+      <div class="wx-stats">
+        <div class="wx-stat"><div class="wx-stat-l">Sunrise</div><div class="wx-stat-v" id="wx-rise">—</div></div>
+        <div class="wx-stat"><div class="wx-stat-l">Sunset</div><div class="wx-stat-v" id="wx-set">—</div></div>
+        <div class="wx-stat"><div class="wx-stat-l">Rain %</div><div class="wx-stat-v" id="wx-rain">—</div></div>
+        <div class="wx-stat"><div class="wx-stat-l">Wind</div><div class="wx-stat-v" id="wx-wind">—</div></div>
+        <div class="wx-stat"><div class="wx-stat-l">UV Index</div><div class="wx-stat-v" id="wx-uv">—</div></div>
+      </div>
+    </div>
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px" id="wx-loc-display"></div>
+    <div class="wx-hourly">
+      <div class="wx-hour-row hdr">
+        <div>Time</div><div>Condition</div><div>Precip %</div><div class="wx-h-temp">Temp</div>
+      </div>
+      <div id="wx-hourly-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TAB 3: EMAIL UPDATER ── -->
+<div class="tab-panel" id="panel-email">
+  <div class="sec-hdr">Email Blast Updater</div>
+  <div class="notice" style="margin-bottom:16px">
+    Paste your previous email blast on the left. The AI will rewrite it using tomorrow's schedule and call details (from Tab 1 if loaded). <strong>Review carefully before sending</strong> — always verify call times, locations, and names in the output.
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+    <div id="email-status"></div>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="clearEmail()">Clear</button>
+      <button class="btn btn-purple" onclick="updateEmail()">✦ Update for Tomorrow</button>
+    </div>
+  </div>
+  <div id="email-panels">
+    <div class="email-panel">
+      <div class="email-panel-hdr"><span>Previous Email</span></div>
+      <div class="email-panel-body">
+        <textarea class="ta mono" id="email-input" rows="18" placeholder="Paste your previous email blast here…"></textarea>
+      </div>
+    </div>
+    <div class="email-panel">
+      <div class="email-panel-hdr">
+        <span>Updated Email</span>
+        <button class="btn btn-ghost btn-sm" onclick="copyEmail()">Copy</button>
+      </div>
+      <div class="email-panel-body">
+        <div id="email-output" class="placeholder">Updated email will appear here after you click "Update for Tomorrow".</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TAB 4: DISTRIBUTION ── -->
+<div class="tab-panel" id="panel-dist">
+  <div class="sec-hdr">Email Distribution</div>
+  <div class="notice" style="margin-bottom:16px">
+    Build your contact book once — then use it every day to verify no one gets missed. Import names from the active Crew Tracker session, add emails, and copy the final list directly into your email client. <strong>No emails are sent from this tool.</strong>
+  </div>
+  <div id="dist-layout">
+    <!-- Contact Book -->
+    <div class="dist-panel">
+      <div class="dist-panel-hdr">
+        <span>Contact Book</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="importContacts()">↓ Import from Crew Tracker</button>
+          <button class="btn btn-ghost btn-sm" onclick="addContact()">+ Add</button>
+        </div>
+      </div>
+      <div class="dist-panel-body" id="contact-book">
+        <div class="contact-hdrs">
+          <div class="contact-hdr">Name</div>
+          <div class="contact-hdr">Dept</div>
+          <div class="contact-hdr">Email</div>
+          <div></div>
+        </div>
+        <div id="contact-rows"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addContact()" style="margin-top:4px;width:100%">+ Add Contact</button>
+      </div>
+    </div>
+
+    <!-- Distribution Manifest -->
+    <div class="dist-panel">
+      <div class="dist-panel-hdr">
+        <span>Tomorrow's Manifest</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="buildManifest()">⟳ Rebuild</button>
+          <button class="btn btn-purple btn-sm" onclick="copyEmails()">Copy Emails</button>
+        </div>
+      </div>
+      <div class="dist-panel-body" id="manifest-body">
+        <div style="color:var(--text3);font-size:12px;padding:12px 0">Click "Rebuild" to generate the recipient list from tomorrow's schedule and contact book.</div>
+      </div>
+      <div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
+        <div id="manifest-summary" style="font-size:11px;color:var(--text2);flex:1"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+var ND = JSON.parse(localStorage.getItem('ST_nextday') || '{"tomorrow":null,"callSheet":null,"contacts":[],"wxLoc":""}');
+function save(){ try{ localStorage.setItem('ST_nextday', JSON.stringify(ND)); }catch(e){} }
+function apiKey(){ return localStorage.getItem('st-key')||''; }
+
+// WMO weather code maps
+var WMO_DESC={0:'Clear Sky',1:'Mainly Clear',2:'Partly Cloudy',3:'Overcast',45:'Fog',48:'Icy Fog',51:'Light Drizzle',53:'Drizzle',55:'Heavy Drizzle',61:'Light Rain',63:'Rain',65:'Heavy Rain',71:'Light Snow',73:'Snow',75:'Heavy Snow',77:'Snow Grains',80:'Light Showers',81:'Showers',82:'Heavy Showers',85:'Snow Showers',86:'Heavy Snow Showers',95:'Thunderstorm',96:'Thunderstorm + Hail',99:'Heavy Thunderstorm'};
+var WMO_ICON={0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',61:'🌦️',63:'🌧️',65:'🌧️',71:'🌨️',73:'❄️',75:'❄️',77:'🌨️',80:'🌧️',81:'🌧️',82:'⛈️',85:'🌨️',86:'❄️',95:'⛈️',96:'⛈️',99:'⛈️'};
+
+// ─── UTILITIES ────────────────────────────────────────────────────────────────
+function ev(e){ e.preventDefault(); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function showStat(id,type,msg){
+  var el=document.getElementById(id);
+  if(!el) return;
+  var icons={loading:'<span class="spin">⟳</span>',ok:'✓',err:'✕'};
+  el.innerHTML='<span class="status '+type+'">'+icons[type]+' '+esc(msg)+'</span>';
+}
+function clearStat(id){ var el=document.getElementById(id); if(el) el.innerHTML=''; }
+
+function fmt12(t){
+  if(!t) return '—';
+  var p=t.split(':'),h=parseInt(p[0]),m=String(p[1]||'00').substring(0,2);
+  return (h%12||12)+':'+m+(h>=12?' PM':' AM');
+}
+
+function tomorrowLabel(){
+  var d=new Date(); d.setDate(d.getDate()+1);
+  return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function showTab(id){
+  document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('panel-'+id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+window.showTab=showTab;
+
+// ─── ANTHROPIC API ────────────────────────────────────────────────────────────
+async function apiCall(messages, sys){
+  var key=apiKey();
+  if(!key) throw new Error('No API key. Set it in Crew Tracker → Settings.');
+  var resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-beta':'pdfs-2024-09-25','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:32000,system:sys,messages:messages})
+  });
+  if(!resp.ok){ var e=await resp.json().catch(function(){return{};}); throw new Error(e.error&&e.error.message?e.error.message:'API error '+resp.status); }
+  var data=await resp.json();
+  return data.content[0].text;
+}
+
+function parseJSON(raw, label){
+  var cleaned=raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+  var m=cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+  if(m) try{ return JSON.parse(m[1]); }catch(e){}
+  try{ return JSON.parse(cleaned); }catch(e){}
+  throw new Error('Could not parse '+label+' response as JSON');
+}
+
+// ─── TAB 1: SCHEDULE ──────────────────────────────────────────────────────────
+window.ev=ev;
+window.dropAdv=function(e){ e.preventDefault(); document.getElementById('adv-zone').classList.remove('over'); var f=e.dataTransfer.files[0]; if(f) procAdv(f); };
+window.dropCS=function(e){ e.preventDefault(); document.getElementById('cs-zone').classList.remove('over'); var f=e.dataTransfer.files[0]; if(f) procCS(f); };
+
+window.procAdv=function(file){
+  if(location.protocol==='file:'){ showStat('adv-status','err','Requires local server.'); return; }
+  showStat('adv-status','loading','Extracting tomorrow\'s scenes…');
+  var r=new FileReader(); r.onload=function(e){ extractAdv(e.target.result.split(',')[1]); }; r.readAsDataURL(file);
+};
+
+window.procCS=function(file){
+  if(location.protocol==='file:'){ showStat('cs-status','err','Requires local server.'); return; }
+  showStat('cs-status','loading','Extracting cast calls…');
+  var r=new FileReader(); r.onload=function(e){ extractCS(e.target.result.split(',')[1]); }; r.readAsDataURL(file);
+};
+
+async function extractAdv(b64){
+  var tomorrow=tomorrowLabel();
+  var SYS='Film production schedule parser. Return ONLY raw JSON, no markdown.';
+  var P='This is an advanced shooting schedule PDF. Extract ONLY the scenes scheduled for TOMORROW ('+tomorrow+' or the next shooting day after today).\n'+
+    'CRITICAL: Do NOT include scenes from today or any other day. Only process the section for the next shooting day.\n'+
+    'Return a JSON object: {"dayLabel":"Day X","date":"","generalCall":"","shootingCall":"","location":"","scenes":[{"type":"scene","nums":"41","set":"PARKING GARAGE","intExt":"INT","dn":"Day","pages":"2/8","castNums":["1","8"],"estMins":25,"startTime":"08:00"},{"type":"lunch","startTime":"13:00","duration":30}]}\n'+
+    'estMins: convert "0:25"→25, "2:00"→120. startTime in HH:MM 24h. Include ALL scenes for that day in shooting order.';
+  try{
+    var raw=await apiCall([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:P}]}],SYS);
+    var data=parseJSON(raw,'advanced schedule');
+    if(!data.scenes||!data.scenes.length){ showStat('adv-status','err','No scenes found for tomorrow.'); return; }
+    if(!ND.tomorrow) ND.tomorrow={};
+    ND.tomorrow.scenes=data.scenes;
+    ND.tomorrow.dayLabel=data.dayLabel||'';
+    ND.tomorrow.date=data.date||'';
+    ND.tomorrow.location=data.location||'';
+    ND.tomorrow.generalCall=data.generalCall||'';
+    ND.tomorrow.shootingCall=data.shootingCall||'';
+    save();
+    showStat('adv-status','ok','✓ '+data.scenes.filter(function(s){return s.type==='scene';}).length+' scenes for '+(data.dayLabel||'tomorrow'));
+    renderSchedOut();
+  }catch(e){ showStat('adv-status','err','Error: '+e.message); }
+}
+
+async function extractCS(b64){
+  var SYS='Film call sheet parser. Return ONLY raw JSON, no markdown.';
+  var P='Parse this call sheet. Extract: general call time, shooting call time, location/address, and the full cast call list.\n'+
+    'Return: {"generalCall":"07:00","shootingCall":"08:00","location":"123 Main St, Los Angeles","date":"","cast":[{"num":"1","name":"Jane Smith","role":"Olivia","callTime":"07:30","onSetTime":"08:00"}]}\n'+
+    'Include all cast members listed. callTime in HH:MM 24h format.';
+  try{
+    var raw=await apiCall([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:P}]}],SYS);
+    var data=parseJSON(raw,'call sheet');
+    if(!ND.tomorrow) ND.tomorrow={};
+    ND.tomorrow.cast=data.cast||[];
+    ND.tomorrow.generalCall=data.generalCall||ND.tomorrow.generalCall||'';
+    ND.tomorrow.shootingCall=data.shootingCall||ND.tomorrow.shootingCall||'';
+    ND.tomorrow.location=data.location||ND.tomorrow.location||'';
+    ND.tomorrow.date=data.date||ND.tomorrow.date||'';
+    save();
+    showStat('cs-status','ok','✓ '+(data.cast||[]).length+' cast calls extracted');
+    renderSchedOut();
+  }catch(e){ showStat('cs-status','err','Error: '+e.message); }
+}
+
+function renderSchedOut(){
+  var t=ND.tomorrow;
+  if(!t||(!t.scenes&&!t.cast)){ document.getElementById('sched-out').style.display='none'; return; }
+  document.getElementById('sched-out').style.display='block';
+  // Title + meta
+  var meta=[];
+  if(t.dayLabel) meta.push(t.dayLabel);
+  if(t.date) meta.push(t.date);
+  if(t.generalCall) meta.push('General: '+fmt12(t.generalCall));
+  if(t.shootingCall) meta.push('Shooting: '+fmt12(t.shootingCall));
+  document.getElementById('sched-out-meta').textContent=meta.join(' · ');
+  // Scenes
+  var sg=document.getElementById('sched-grid');
+  sg.innerHTML='';
+  if(t.scenes) t.scenes.forEach(function(sc){
+    var row=document.createElement('div');
+    if(sc.type==='lunch'){
+      row.className='sched-row lunch-row';
+      row.innerHTML='🍽 Lunch — '+fmt12(sc.startTime)+(sc.duration?' ('+sc.duration+' min)':'');
+    } else {
+      row.className='sched-row';
+      row.innerHTML='<div class="sr-num">'+esc(sc.nums||'')+'</div>'+
+        '<div class="sr-set">'+esc(sc.set||'')+'</div>'+
+        '<div class="sr-ie">'+esc(sc.intExt||'')+'</div>'+
+        '<div class="sr-dn">'+esc((sc.dn||'').replace(/^(Day|Night|Dusk|Dawn)\s*/i,'').substring(0,1).toUpperCase()||sc.dn||'')+'</div>'+
+        '<div class="sr-pg">'+esc(sc.pages||'')+'</div>'+
+        '<div class="sr-time">'+(sc.startTime?fmt12(sc.startTime):'')+'</div>';
+    }
+    sg.appendChild(row);
+  });
+  // Cast calls
+  var ccg=document.getElementById('cast-calls-grid');
+  ccg.innerHTML='';
+  if(t.cast&&t.cast.length) t.cast.forEach(function(c){
+    var card=document.createElement('div');
+    card.className='call-card';
+    card.innerHTML='<div class="call-card-name">'+esc(c.name||'')+'</div>'+
+      (c.role?'<div class="call-card-role">'+esc(c.role)+'</div>':'')+
+      (c.callTime?'<div class="call-card-time">Call: '+fmt12(c.callTime)+(c.onSetTime?' · On Set: '+fmt12(c.onSetTime):'')+'</div>':'');
+    ccg.appendChild(card);
+  });
+  // Production details
+  if(t.location||t.generalCall){
+    document.getElementById('prod-details').style.display='block';
+    var pb=document.getElementById('prod-details-body');
+    var items=[];
+    if(t.location) items.push(['Location',t.location]);
+    if(t.generalCall) items.push(['General Call',fmt12(t.generalCall)]);
+    if(t.shootingCall) items.push(['Shooting Call',fmt12(t.shootingCall)]);
+    pb.innerHTML=items.map(function(i){ return '<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:2px">'+esc(i[0])+'</div><div style="font-size:15px;font-weight:600;font-family:var(--mono);color:var(--accent)">'+esc(i[1])+'</div></div>'; }).join('');
+  }
+}
+
+window.clearTomorrow=function(){
+  if(!confirm('Clear tomorrow\'s schedule data?')) return;
+  ND.tomorrow=null; save(); document.getElementById('sched-out').style.display='none';
+  clearStat('adv-status'); clearStat('cs-status');
+};
+
+// ─── TAB 2: WEATHER ───────────────────────────────────────────────────────────
+window.fetchWeather=async function(){
+  var loc=document.getElementById('wx-loc').value.trim();
+  if(!loc){ showStat('wx-status','err','Enter a location.'); return; }
+  ND.wxLoc=loc; save();
+  showStat('wx-status','loading','Geocoding location…');
+  try{
+    var geoR=await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(loc)+'&count=1&language=en&format=json');
+    var geo=await geoR.json();
+    if(!geo.results||!geo.results.length){ showStat('wx-status','err','Location not found. Try city name or landmark.'); return; }
+    var g=geo.results[0];
+    showStat('wx-status','loading','Fetching forecast for '+g.name+', '+(g.admin1||g.country_code||'')+'…');
+    var fR=await fetch('https://api.open-meteo.com/v1/forecast?latitude='+g.latitude+'&longitude='+g.longitude+
+      '&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,weathercode,windspeed_10m_max,uv_index_max'+
+      '&hourly=temperature_2m,precipitation_probability,weathercode'+
+      '&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=2');
+    var fx=await fR.json();
+    clearStat('wx-status');
+    renderWeather(fx, g);
+  }catch(e){ showStat('wx-status','err','Error: '+e.message); }
+};
+
+function fmtSun(iso){
+  if(!iso) return '—';
+  var d=new Date(iso);
+  return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+}
+
+function renderWeather(fx, geo){
+  var d=fx.daily, i=1; // index 1 = tomorrow
+  var code=d.weathercode[i]||0;
+  document.getElementById('wx-icon').textContent=WMO_ICON[code]||'🌡️';
+  document.getElementById('wx-hi').textContent=Math.round(d.temperature_2m_max[i]);
+  document.getElementById('wx-lo').textContent=Math.round(d.temperature_2m_min[i]);
+  document.getElementById('wx-cond').textContent=WMO_DESC[code]||'';
+  document.getElementById('wx-rise').textContent=fmtSun(d.sunrise[i]);
+  document.getElementById('wx-set').textContent=fmtSun(d.sunset[i]);
+  document.getElementById('wx-rain').textContent=(d.precipitation_probability_max[i]||0)+'%';
+  document.getElementById('wx-wind').textContent=Math.round(d.windspeed_10m_max[i]||0)+' mph';
+  document.getElementById('wx-uv').textContent=Math.round(d.uv_index_max[i]||0);
+  document.getElementById('wx-loc-display').textContent=geo.name+(geo.admin1?', '+geo.admin1:'')+(geo.country_code?', '+geo.country_code:'');
+  // Hourly — show tomorrow's hours (index 24-47)
+  var hb=document.getElementById('wx-hourly-body');
+  hb.innerHTML='';
+  // Find tomorrow's date string
+  var tmrDate=new Date(); tmrDate.setDate(tmrDate.getDate()+1);
+  var tmrStr=tmrDate.toISOString().substring(0,10);
+  var hours=fx.hourly.time;
+  var maxPrecip=Math.max.apply(null,fx.hourly.precipitation_probability.slice(24,48).map(Number));
+  for(var h=0;h<hours.length;h++){
+    if(!hours[h].startsWith(tmrStr)) continue;
+    var hr=new Date(hours[h]).getHours();
+    if(hr<5||hr>22) continue;
+    var pct=fx.hourly.precipitation_probability[h]||0;
+    var temp=Math.round(fx.hourly.temperature_2m[h]||0);
+    var wc=fx.hourly.weathercode[h]||0;
+    var row=document.createElement('div');
+    row.className='wx-hour-row';
+    var hDisp=hr===0?'12 AM':hr<12?hr+' AM':hr===12?'12 PM':(hr-12)+' PM';
+    row.innerHTML='<div class="wx-h-time">'+hDisp+'</div>'+
+      '<div>'+(WMO_ICON[wc]||'')+'  '+(WMO_DESC[wc]||'')+'</div>'+
+      '<div><div style="display:flex;align-items:center;gap:6px"><div class="wx-h-bar" style="flex:1"><div class="wx-h-bar-fill" style="width:'+(maxPrecip>0?Math.round(pct/maxPrecip*100):0)+'%"></div></div><span style="font-family:var(--mono);font-size:11px;width:28px;text-align:right;color:'+(pct>50?'var(--warn)':'var(--text2)')+'">'+pct+'%</span></div></div>'+
+      '<div class="wx-h-temp">'+temp+'°</div>';
+    hb.appendChild(row);
+  }
+  document.getElementById('wx-main').style.display='block';
+}
+
+// ─── TAB 3: EMAIL ─────────────────────────────────────────────────────────────
+window.updateEmail=async function(){
+  var oldEmail=document.getElementById('email-input').value.trim();
+  if(!oldEmail){ showStat('email-status','err','Paste your previous email first.'); return; }
+  showStat('email-status','loading','Rewriting for tomorrow…');
+  // Build context from tomorrow's data
+  var ctx='';
+  if(ND.tomorrow){
+    var t=ND.tomorrow;
+    var lines=['=== TOMORROW\'S CALL SHEET INFORMATION ==='];
+    if(t.dayLabel) lines.push('Shooting Day: '+t.dayLabel);
+    if(t.date) lines.push('Date: '+t.date);
+    if(t.location) lines.push('Location: '+t.location);
+    if(t.generalCall) lines.push('General Call: '+fmt12(t.generalCall));
+    if(t.shootingCall) lines.push('Shooting Call: '+fmt12(t.shootingCall));
+    if(t.scenes&&t.scenes.length){
+      lines.push('\nScene Order:');
+      t.scenes.forEach(function(sc){
+        if(sc.type==='lunch') lines.push('  LUNCH — '+fmt12(sc.startTime));
+        else lines.push('  Sc '+sc.nums+' | '+sc.set+' | '+(sc.intExt||'')+' | '+(sc.pages||'')+' pages | '+fmt12(sc.startTime));
+      });
+    }
+    if(t.cast&&t.cast.length){
+      lines.push('\nCast Calls:');
+      t.cast.forEach(function(c){ lines.push('  '+c.name+(c.role?' ('+c.role+')':'')+' — Call: '+fmt12(c.callTime)+(c.onSetTime?' | On Set: '+fmt12(c.onSetTime):'')); });
+    }
+    ctx=lines.join('\n');
+  } else {
+    ctx='[No schedule data loaded in Tab 1. Using only context from previous email.]';
+  }
+  try{
+    var SYS='You are a film production coordinator. Rewrite email blasts clearly and professionally. Preserve the structure and tone of the original. Output only the email text — no preamble, no explanation.';
+    var P='Update this email blast for tomorrow\'s shooting day using the call sheet information provided. Change all dates, day numbers, call times, scene numbers, set locations, and cast names to match tomorrow. Keep the same format, greeting, and sign-off.\n\n'+ctx+'\n\n=== PREVIOUS EMAIL ===\n'+oldEmail;
+    var result=await apiCall([{role:'user',content:[{type:'text',text:P}]}],SYS);
+    var out=document.getElementById('email-output');
+    out.classList.remove('placeholder');
+    out.textContent=result;
+    clearStat('email-status');
+  }catch(e){ showStat('email-status','err','Error: '+e.message); }
+};
+
+window.copyEmail=function(){
+  var txt=document.getElementById('email-output').textContent;
+  if(!txt||document.getElementById('email-output').classList.contains('placeholder')) return;
+  navigator.clipboard.writeText(txt).then(function(){ showStat('email-status','ok','Copied to clipboard'); setTimeout(function(){ clearStat('email-status'); },2000); });
+};
+
+window.clearEmail=function(){
+  document.getElementById('email-input').value='';
+  var out=document.getElementById('email-output');
+  out.textContent='Updated email will appear here after you click "Update for Tomorrow".';
+  out.classList.add('placeholder');
+  clearStat('email-status');
+};
+
+// ─── TAB 4: DISTRIBUTION ─────────────────────────────────────────────────────
+function renderContacts(){
+  var el=document.getElementById('contact-rows');
+  el.innerHTML='';
+  ND.contacts.forEach(function(c,i){
+    var row=document.createElement('div');
+    row.className='contact-row';
+    row.style.marginBottom='4px';
+    row.innerHTML='<input type="text" value="'+esc(c.name||'')+'" placeholder="Name" data-i="'+i+'" data-f="name" oninput="updContact(this)">'+
+      '<input type="text" value="'+esc(c.dept||'')+'" placeholder="Dept" data-i="'+i+'" data-f="dept" oninput="updContact(this)">'+
+      '<input type="text" value="'+esc(c.email||'')+'" placeholder="email@example.com" data-i="'+i+'" data-f="email" oninput="updContact(this)">'+
+      '<button class="rm-btn" onclick="rmContact('+i+')">✕</button>';
+    el.appendChild(row);
+  });
+}
+
+window.updContact=function(el){ var i=+el.dataset.i; if(ND.contacts[i]) ND.contacts[i][el.dataset.f]=el.value; save(); };
+window.rmContact=function(i){ ND.contacts.splice(i,1); save(); renderContacts(); buildManifest(); };
+window.addContact=function(){
+  ND.contacts.push({name:'',dept:'',email:''});
+  save(); renderContacts();
+  var rows=document.querySelectorAll('.contact-row');
+  if(rows.length) rows[rows.length-1].querySelector('input').focus();
+};
+
+window.importContacts=function(){
+  try{
+    var ct=JSON.parse(localStorage.getItem('st-s')||'{}');
+    var added=0;
+    function addIfNew(name,dept){
+      if(!name) return;
+      var exists=ND.contacts.some(function(c){ return c.name&&c.name.toLowerCase()===name.toLowerCase(); });
+      if(!exists){ ND.contacts.push({name:name,dept:dept||'',email:''}); added++; }
+    }
+    if(ct.cast) ct.cast.filter(function(c){ return c.name; }).forEach(function(c){ addIfNew(c.name,'Cast'); });
+    if(ct.crew) ct.crew.filter(function(c){ return c.name; }).forEach(function(c){ addIfNew(c.name,c.dept||'Crew'); });
+    if(ND.tomorrow&&ND.tomorrow.cast) ND.tomorrow.cast.filter(function(c){ return c.name; }).forEach(function(c){ addIfNew(c.name,'Cast'); });
+    save(); renderContacts();
+    if(added>0) alert(added+' new contacts imported.'); else alert('No new contacts found (all already in book).');
+  }catch(e){ alert('Could not read Crew Tracker data.'); }
+};
+
+window.buildManifest=function(){
+  var mb=document.getElementById('manifest-body');
+  mb.innerHTML='';
+  // Build list of tomorrow's people
+  var people=[];
+  var seen=new Set();
+  function addPerson(name,dept){
+    if(!name||seen.has(name.toLowerCase())) return;
+    seen.add(name.toLowerCase());
+    people.push({name:name,dept:dept||''});
+  }
+  if(ND.tomorrow){
+    if(ND.tomorrow.cast) ND.tomorrow.cast.forEach(function(c){ if(c.name) addPerson(c.name,'Cast'); });
+    if(ND.tomorrow.scenes) ND.tomorrow.scenes.forEach(function(sc){ if(sc.castNames) sc.castNames.forEach(function(n){ addPerson(n,'Cast'); }); });
+  }
+  // Also pull from crew-tracker if loaded
+  try{
+    var ct=JSON.parse(localStorage.getItem('st-s')||'{}');
+    if(ct.crew) ct.crew.filter(function(c){ return c.name; }).forEach(function(c){ addPerson(c.name,c.dept||'Crew'); });
+    if(ct.cast) ct.cast.filter(function(c){ return c.name; }).forEach(function(c){ addPerson(c.name,'Cast'); });
+  }catch(e){}
+  if(!people.length){
+    mb.innerHTML='<div style="color:var(--text3);font-size:12px;padding:12px 0">No schedule data. Load tomorrow\'s call in Tab 1, or import contacts first.</div>';
+    document.getElementById('manifest-summary').textContent='';
+    return;
+  }
+  // Match to contact book
+  var withEmail=0, missing=0;
+  people.forEach(function(p){
+    var contact=ND.contacts.find(function(c){ return c.name&&c.name.toLowerCase()===p.name.toLowerCase(); });
+    var email=contact?contact.email:'';
+    var row=document.createElement('div');
+    row.className='manifest-row';
+    row.innerHTML='<div class="manifest-name">'+esc(p.name)+'</div>'+
+      '<div class="manifest-dept" style="color:var(--text3);font-size:11px">'+esc(p.dept)+'</div>'+
+      '<div class="manifest-email'+(email?'':' missing')+'">'+esc(email||'no email on file')+'</div>';
+    mb.appendChild(row);
+    if(email) withEmail++; else missing++;
+  });
+  document.getElementById('manifest-summary').textContent=withEmail+' with email · '+missing+' missing'+( missing>0?' ⚠':'');
+};
+
+window.copyEmails=function(){
+  var emails=[];
+  ND.contacts.forEach(function(c){
+    if(c.email&&c.email.includes('@')) emails.push(c.email);
+  });
+  if(!emails.length){ alert('No email addresses in contact book yet.'); return; }
+  navigator.clipboard.writeText(emails.join(', ')).then(function(){
+    showStat('manifest-summary','ok',emails.length+' emails copied');
+    setTimeout(function(){ buildManifest(); },2500);
+  });
+};
+// Override for manifest-summary (not a status el)
+window.copyEmails=function(){
+  var emails=[];
+  var mb=document.getElementById('manifest-body');
+  // Use only contacts with emails that are in the manifest
+  var seen=new Set();
+  mb.querySelectorAll('.manifest-email:not(.missing)').forEach(function(el){
+    var email=el.textContent.trim();
+    if(email&&email.includes('@')&&!seen.has(email)){ seen.add(email); emails.push(email); }
+  });
+  if(!emails.length){ alert('No email addresses in manifest. Add emails to the contact book first.'); return; }
+  navigator.clipboard.writeText(emails.join(', ')).then(function(){
+    var s=document.getElementById('manifest-summary');
+    s.textContent='✓ '+emails.length+' emails copied to clipboard';
+    s.style.color='var(--success)';
+    setTimeout(function(){ buildManifest(); s.style.color=''; },2500);
+  });
+};
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.getElementById('hdr-tomorrow').textContent='Planning: '+tomorrowLabel();
+if(ND.wxLoc) document.getElementById('wx-loc').value=ND.wxLoc;
+renderSchedOut();
+renderContacts();
+buildManifest();
+</script>
+</body>
+</html>

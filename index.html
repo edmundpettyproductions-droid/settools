@@ -4,28 +4,78 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Set Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:#0e0e0f;color:#e8e8ec;font-family:'Segoe UI',Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px}
-h1{font-size:2rem;letter-spacing:.08em;color:#f0c040;text-transform:uppercase}
-.cards{display:flex;gap:24px;flex-wrap:wrap;justify-content:center}
-.card{background:#161618;border:1px solid #2e2e34;border-radius:8px;padding:32px 40px;text-align:center;text-decoration:none;color:#e8e8ec;transition:border-color .2s,background .2s;min-width:220px}
-.card:hover{border-color:#f0c040;background:#1e1e21}
-.card h2{font-size:1.2rem;margin-bottom:8px;color:#f0c040}
-.card p{font-size:.9rem;color:#9a9aaa}
+body{background:#0e0e0f;color:#e8e8ec;font-family:'Barlow',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;padding:40px 20px}
+h1{font-family:'Barlow Condensed',sans-serif;font-size:2.2rem;letter-spacing:.1em;color:#f0c040;text-transform:uppercase}
+
+.group{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:700px}
+.group-label{font-size:10px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;padding:4px 14px;border-radius:3px}
+.group-label.today{color:#f0c040;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.25)}
+.group-label.isolated{color:#a78bfa;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.25);margin-top:12px}
+.cards{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;width:100%}
+
+.card{border-radius:8px;padding:28px 36px;text-align:center;text-decoration:none;color:#e8e8ec;transition:border-color .18s,background .18s;min-width:200px;flex:1;max-width:280px}
+.card p{font-size:.88rem;margin-top:6px}
+.card h2{font-size:1.15rem;margin-bottom:6px}
+
+/* Today's tools — amber */
+.card.amber{background:#141410;border:1px solid #2e2e20}
+.card.amber:hover{border-color:#f0c040;background:#1a1a12}
+.card.amber h2{color:#f0c040}
+.card.amber p{color:#7a7a5a}
+
+/* Isolated tools — teal / purple each */
+.card.teal{background:#07100f;border:1px solid #1a3330}
+.card.teal:hover{border-color:#14b8a6;background:#0d1c1a}
+.card.teal h2{color:#14b8a6}
+.card.teal p{color:#3d7a75}
+
+.card.purple{background:#0d0b14;border:1px solid #2a2245}
+.card.purple:hover{border-color:#a78bfa;background:#151020}
+.card.purple h2{color:#a78bfa}
+.card.purple p{color:#5a4f90}
+
+.divider{width:100%;max-width:700px;border:none;border-top:1px solid #1e1e22}
+.isolated-note{font-size:11px;color:#5c5c6e;text-align:center;max-width:580px;line-height:1.6}
+.isolated-note strong{color:#9a9aaa}
 </style>
 </head>
 <body>
 <h1>Set Tools</h1>
-<div class="cards">
-  <a class="card" href="crew-tracker.html">
-    <h2>Crew Tracker</h2>
-    <p>Set Tools crew management</p>
-  </a>
-  <a class="card" href="G-Casper.html">
-    <h2>G-Casper</h2>
-    <p>Call Sheet &amp; Production Report System</p>
-  </a>
+
+<div class="group">
+  <div class="group-label today">Today's Tools</div>
+  <div class="cards">
+    <a class="card amber" href="crew-tracker.html">
+      <h2>Crew Tracker</h2>
+      <p>Call sheet, timers, schedule, DOOD</p>
+    </a>
+    <a class="card amber" href="sign-in.html">
+      <h2>Sign-In Station</h2>
+      <p>Touchscreen cast sign-in with signature</p>
+    </a>
+  </div>
 </div>
+
+<hr class="divider">
+
+<div class="group">
+  <div class="group-label isolated">⚠ Isolated — Next Day Planning</div>
+  <div class="cards">
+    <a class="card teal" href="sign-in.html" style="display:none"></a><!-- reserved -->
+    <a class="card purple" href="next-day.html">
+      <h2>Next Day Prep</h2>
+      <p>Tomorrow's schedule, weather, email blast &amp; distribution</p>
+    </a>
+  </div>
+  <div class="isolated-note">
+    <strong>These tools are completely isolated from today's records.</strong><br>
+    Data entered here is for planning only and does not affect Crew Tracker or Sign-In.
+  </div>
+</div>
+
 </body>
 </html>

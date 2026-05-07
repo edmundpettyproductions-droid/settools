@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Sign-In Station · Set Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#06100f;--bg2:#0c1c1a;--bg3:#132422;--bg4:#1b302d;
+  --border:#183430;--border2:#22504a;
+  --text:#dff4f1;--text2:#72b0aa;--text3:#3a7470;
+  --accent:#14b8a6;--accent2:#0d9488;--success:#34d399;--danger:#e05a5a;
+  --radius:8px;--font:'Barlow',sans-serif;--mono:'DM Mono',monospace;--cond:'Barlow Condensed',sans-serif;
+  --hh:58px;
+}
+*{font-family:var(--font);font-size:13px}
+body{background:var(--bg);color:var(--text);min-height:100vh;overflow:hidden}
+button{cursor:pointer}a{text-decoration:none}
+
+/* HEADER */
+#hdr{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--bg2);border-bottom:2px solid var(--border2);display:flex;align-items:center;gap:12px;padding:0 18px;height:var(--hh)}
+#hdr-title{font-family:var(--cond);font-size:21px;font-weight:700;letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+#hdr-info{font-family:var(--mono);font-size:11px;color:var(--text2);flex:1}
+.btn{padding:7px 14px;border-radius:6px;border:1px solid;cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.02em;transition:all .12s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-teal{background:var(--accent);color:#06100f;border-color:var(--accent)}
+.btn-teal:hover{background:var(--accent2);border-color:var(--accent2)}
+.btn-ghost{background:transparent;color:var(--text2);border-color:var(--border2)}
+.btn-ghost:hover{background:var(--bg3);color:var(--text);border-color:var(--accent)}
+.btn-danger{background:transparent;color:var(--danger);border-color:var(--danger)}
+.btn-danger:hover{background:rgba(224,90,90,.12)}
+
+/* EMPTY STATE */
+#empty-state{position:fixed;top:var(--hh);left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+#empty-state h2{font-family:var(--cond);font-size:30px;font-weight:700;letter-spacing:.06em;color:var(--accent)}
+#empty-state p{font-size:14px;color:var(--text2);text-align:center;max-width:380px;line-height:1.6}
+
+/* GRID */
+#grid-view{position:fixed;top:var(--hh);left:0;right:0;bottom:0;padding:10px;display:none;gap:10px}
+.cast-card{background:var(--bg2);border:2px solid var(--border2);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:border-color .15s,background .15s,transform .1s;user-select:none;text-align:center;padding:10px;position:relative;overflow:hidden}
+.cast-card:not(.signed-in):hover{border-color:var(--accent);background:var(--bg3);transform:scale(.98)}
+.cast-card:not(.signed-in):active{transform:scale(.95)}
+.cast-card.signed-in{border-color:var(--success);background:rgba(52,211,153,.06);cursor:default}
+.cc-badge{position:absolute;top:10px;right:12px;color:var(--success);font-size:clamp(16px,2.5vw,28px);font-weight:700}
+.cc-name{font-size:clamp(18px,4vw,48px);font-weight:700;color:var(--text);line-height:1.15;font-family:var(--cond)}
+.cast-card.signed-in .cc-name{color:var(--text2)}
+.cc-role{font-size:clamp(10px,1.5vw,18px);color:var(--text2);margin-top:4px}
+.cc-call{font-family:var(--mono);font-size:clamp(10px,1.4vw,16px);color:var(--accent);margin-top:6px}
+.cast-card.signed-in .cc-call{color:var(--text3)}
+.cc-time{font-size:clamp(9px,1.1vw,13px);color:var(--success);margin-top:4px;font-family:var(--mono)}
+
+/* SIGN-IN VIEW */
+#signin-view{position:fixed;inset:0;background:var(--bg);z-index:200;display:none;flex-direction:column}
+#si-hdr{background:var(--bg2);border-bottom:3px solid var(--accent);padding:20px 28px 14px;flex-shrink:0}
+#si-name{font-family:var(--cond);font-size:clamp(36px,7vw,76px);font-weight:700;color:var(--text);letter-spacing:.03em;line-height:1}
+#si-role{font-size:clamp(14px,2.2vw,22px);color:var(--text2);margin-top:6px}
+#si-meta{display:flex;gap:32px;padding:12px 28px;flex-wrap:wrap;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.si-m{display:flex;flex-direction:column;gap:2px}
+.si-ml{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+.si-mv{font-size:clamp(16px,2.5vw,22px);font-weight:600;font-family:var(--mono);color:var(--accent)}
+#si-sig-wrap{flex:1;display:flex;flex-direction:column;padding:14px 28px;gap:10px;min-height:0}
+#si-sig-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);flex-shrink:0}
+#sig-canvas{flex:1;background:var(--bg2);border:2px solid var(--border2);border-radius:6px;touch-action:none;cursor:crosshair;min-height:0;width:100%}
+#si-btns{display:flex;gap:10px;padding:14px 28px;border-top:1px solid var(--border);flex-shrink:0}
+.spacer{flex:1}
+
+/* SUCCESS */
+#success-view{position:fixed;inset:0;background:var(--bg);z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center}
+#sv-icon{font-size:100px;color:var(--success);animation:pop .35s ease}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+#sv-name{font-family:var(--cond);font-size:clamp(28px,5vw,52px);font-weight:700;color:var(--text)}
+#sv-signed{font-family:var(--mono);font-size:16px;color:var(--accent)}
+#sv-msg{font-size:14px;color:var(--text2)}
+
+/* OVERLAYS & MODALS */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:400;display:none;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;width:min(640px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.mhdr{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0}
+.mhdr h2{font-family:var(--cond);font-size:18px;font-weight:700;color:var(--accent);letter-spacing:.04em}
+.mbody{padding:20px 22px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex:1}
+.mftr{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-shrink:0}
+lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);display:block;margin-bottom:4px}
+inp{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:7px 10px;font-size:13px;outline:none}
+inp:focus{border-color:var(--accent)}
+.ta{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:8px 10px;font-size:12px;font-family:var(--mono);outline:none;resize:vertical}
+.ta:focus{border-color:var(--accent)}
+.entry-row{display:grid;grid-template-columns:1fr 1fr 80px 28px;gap:5px;align-items:center}
+.entry-row inp{margin:0}
+.col-hdrs-row{display:grid;grid-template-columns:1fr 1fr 80px 28px;gap:5px;margin-bottom:2px}
+.col-h{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);padding:0 2px}
+.rm-btn{background:none;border:none;color:var(--danger);font-size:15px;cursor:pointer;border-radius:3px;padding:3px 5px;line-height:1}
+.rm-btn:hover{background:rgba(224,90,90,.12)}
+
+/* RECORDS TABLE */
+#rec-table{width:100%;border-collapse:collapse}
+#rec-table th{text-align:left;padding:8px 16px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);border-bottom:1px solid var(--border)}
+#rec-table td{padding:9px 16px;border-bottom:1px solid rgba(24,52,48,.7);font-size:13px}
+.rec-ok{color:var(--success);font-family:var(--mono);font-size:12px}
+.rec-pending{color:var(--text3);font-style:italic}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div id="hdr-title">✎ Sign-In Station</div>
+  <div id="hdr-info">No cast loaded</div>
+  <div style="display:flex;gap:7px;margin-left:auto">
+    <button class="btn btn-ghost" onclick="openRecords()">📋 Records</button>
+    <button class="btn btn-ghost" onclick="openSetup()">⚙ Setup</button>
+    <a href="index.html" class="btn btn-ghost">← Home</a>
+  </div>
+</div>
+
+<div id="empty-state">
+  <h2>Sign-In Station</h2>
+  <p>No cast loaded for today. Open Setup to enter the cast list, or pull automatically from the active Crew Tracker session.</p>
+  <button class="btn btn-teal" onclick="openSetup()">⚙ Open Setup</button>
+</div>
+
+<div id="grid-view"></div>
+
+<div id="signin-view">
+  <div id="si-hdr">
+    <div id="si-name"></div>
+    <div id="si-role"></div>
+  </div>
+  <div id="si-meta">
+    <div class="si-m"><div class="si-ml">Call Time</div><div class="si-mv" id="si-call">—</div></div>
+    <div class="si-m"><div class="si-ml">Character</div><div class="si-mv" id="si-char" style="font-size:clamp(14px,2vw,18px);color:var(--text2)">—</div></div>
+    <div class="si-m"><div class="si-ml">Today's Scenes</div><div class="si-mv" id="si-scenes" style="font-size:clamp(13px,1.8vw,16px);color:var(--text2)">—</div></div>
+  </div>
+  <div id="si-sig-wrap">
+    <div id="si-sig-lbl">Please sign below to confirm your arrival</div>
+    <canvas id="sig-canvas"></canvas>
+  </div>
+  <div id="si-btns">
+    <button class="btn btn-ghost" onclick="closeSignin()">← Back</button>
+    <div class="spacer"></div>
+    <button class="btn btn-ghost" onclick="clearSig()">Clear Signature</button>
+    <button class="btn btn-teal" onclick="confirmSignin()">✓ Confirm Sign-In</button>
+  </div>
+</div>
+
+<div id="success-view">
+  <div id="sv-icon">✓</div>
+  <div id="sv-name"></div>
+  <div id="sv-signed"></div>
+  <div id="sv-msg">Thank you! Please see a PA.</div>
+</div>
+
+<!-- SETUP OVERLAY -->
+<div class="overlay" id="setup-ov">
+<div class="modal">
+  <div class="mhdr"><h2>Setup — Today's Cast</h2><button class="btn btn-ghost" onclick="closeSetup()">✕</button></div>
+  <div class="mbody">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><lbl>Production / Show</lbl><input class="inp" type="text" id="su-show" placeholder="The Last Signal"></div>
+      <div><lbl>Today's Date</lbl><input class="inp" type="text" id="su-date" placeholder="May 7, 2026"></div>
+    </div>
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+        <lbl style="margin:0">Cast List</lbl>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pullFromTracker()">↓ Pull from Crew Tracker</button>
+      </div>
+      <div class="col-hdrs-row"><div class="col-h">Name</div><div class="col-h">Role / Character</div><div class="col-h">Call Time</div><div></div></div>
+      <div id="cast-entries" style="display:flex;flex-direction:column;gap:5px"></div>
+      <button class="btn btn-ghost" onclick="addEntry()" style="margin-top:8px;width:100%">+ Add Cast Member</button>
+    </div>
+    <div>
+      <lbl>Or Paste List (one per line: Name, Role, Call Time)</lbl>
+      <textarea class="ta" id="paste-area" rows="4" placeholder="Jane Smith, Olivia, 07:30&#10;John Doe, Detective, 09:00&#10;Sam Lee, Guard, 10:00"></textarea>
+      <button class="btn btn-ghost" onclick="parsePaste()" style="margin-top:6px">Import from Text</button>
+    </div>
+  </div>
+  <div class="mftr">
+    <button class="btn btn-danger" style="margin-right:auto" onclick="clearRecs()">Clear Records</button>
+    <button class="btn btn-ghost" onclick="closeSetup()">Cancel</button>
+    <button class="btn btn-teal" onclick="saveSetup()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- RECORDS OVERLAY -->
+<div class="overlay" id="records-ov">
+<div class="modal">
+  <div class="mhdr">
+    <h2>Sign-In Records</h2>
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button>
+      <button class="btn btn-ghost" onclick="closeRecords()">✕</button>
+    </div>
+  </div>
+  <div class="mbody" style="padding:0">
+    <table id="rec-table">
+      <thead><tr><th>Name</th><th>Role</th><th>Call</th><th>Signed In</th></tr></thead>
+      <tbody id="rec-tbody"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<script>
+(function(){
+
+var SS = JSON.parse(localStorage.getItem('ST_signin') || '{"cast":[],"records":[],"show":"","date":""}');
+function save(){ localStorage.setItem('ST_signin', JSON.stringify(SS)); }
+
+function fmt12(t){
+  if(!t) return '—';
+  var p=t.split(':'), h=parseInt(p[0]), m=String(p[1]||'00').substring(0,2);
+  return (h%12||12)+':'+m+(h>=12?' PM':' AM');
+}
+function nowStr(){
+  var d=new Date();
+  return fmt12(d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'));
+}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function isSignedIn(name){ return SS.records.some(function(r){ return r.name===name; }); }
+
+// ─── GRID ────────────────────────────────────────────────────────────
+function renderGrid(){
+  var gv=document.getElementById('grid-view');
+  var es=document.getElementById('empty-state');
+  var cast=SS.cast.filter(function(c){ return c.name&&c.name.trim(); });
+  if(!cast.length){ es.style.display='flex'; gv.style.display='none'; return; }
+  es.style.display='none';
+  var n=cast.length, cols=Math.ceil(Math.sqrt(n)), rows=Math.ceil(n/cols);
+  gv.style.display='grid';
+  gv.style.gridTemplateColumns='repeat('+cols+',1fr)';
+  gv.style.gridTemplateRows='repeat('+rows+',1fr)';
+  var signed=SS.records.length;
+  document.getElementById('hdr-info').textContent=(SS.show||'Set Tools')+' · '+(SS.date||'')+' · '+signed+'/'+cast.length+' signed in';
+  gv.innerHTML='';
+  cast.forEach(function(c){
+    var ok=isSignedIn(c.name);
+    var rec=SS.records.find(function(r){ return r.name===c.name; });
+    var card=document.createElement('div');
+    card.className='cast-card'+(ok?' signed-in':'');
+    card.innerHTML=(ok?'<div class="cc-badge">✓</div>':'')+
+      '<div class="cc-name">'+esc(c.name)+'</div>'+
+      (c.role?'<div class="cc-role">'+esc(c.role)+'</div>':'')+
+      (c.callTime?'<div class="cc-call">'+fmt12(c.callTime)+'</div>':'')+
+      (ok&&rec?'<div class="cc-time">Signed in '+esc(rec.signedAt)+'</div>':'');
+    if(!ok) card.onclick=(function(ac){ return function(){ openSignin(ac); }; })(c);
+    gv.appendChild(card);
+  });
+}
+
+// ─── SIGN-IN VIEW ────────────────────────────────────────────────────
+var curActor=null, sigDrawing=false, sigCtx=null;
+var sigCanvas=document.getElementById('sig-canvas');
+
+function openSignin(actor){
+  curActor=actor;
+  document.getElementById('si-name').textContent=actor.name;
+  document.getElementById('si-role').textContent=actor.role||'';
+  document.getElementById('si-call').textContent=actor.callTime?fmt12(actor.callTime):'—';
+  document.getElementById('si-char').textContent=actor.role||'—';
+  // Try to pull scene numbers from active crew-tracker session
+  var scenes='—';
+  try{
+    var ct=JSON.parse(localStorage.getItem('st-s')||'{}');
+    if(ct.scenes&&ct.cast){
+      var cm=ct.cast.find(function(c){ return c.name&&c.name.toLowerCase()===actor.name.toLowerCase(); });
+      if(cm&&cm.num){
+        var sl=ct.scenes.filter(function(sc){
+          return !sc.isLunch&&sc.castNums&&sc.castNums.indexOf(cm.num)!==-1;
+        }).map(function(sc){ return sc.nums; });
+        if(sl.length) scenes=sl.join(', ');
+      }
+    }
+  }catch(e){}
+  document.getElementById('si-scenes').textContent=scenes;
+  var sv=document.getElementById('signin-view');
+  sv.style.display='flex';
+  setTimeout(function(){
+    var rect=sigCanvas.getBoundingClientRect();
+    sigCanvas.width=Math.floor(rect.width);
+    sigCanvas.height=Math.floor(rect.height);
+    sigCtx=sigCanvas.getContext('2d');
+    applySigStyle();
+    clearSig();
+  }, 60);
+}
+
+function closeSignin(){ document.getElementById('signin-view').style.display='none'; curActor=null; }
+
+function applySigStyle(){
+  if(!sigCtx) return;
+  sigCtx.strokeStyle='#14b8a6'; sigCtx.lineWidth=2.5; sigCtx.lineCap='round'; sigCtx.lineJoin='round';
+}
+
+function clearSig(){
+  if(!sigCtx) return;
+  sigCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height);
+  applySigStyle();
+}
+
+function getPos(e){
+  var r=sigCanvas.getBoundingClientRect();
+  var src=e.touches?e.touches[0]:e;
+  return{x:src.clientX-r.left, y:src.clientY-r.top};
+}
+
+sigCanvas.addEventListener('pointerdown',function(e){
+  sigDrawing=true;
+  if(!sigCtx){ sigCtx=sigCanvas.getContext('2d'); applySigStyle(); }
+  var p=getPos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x,p.y); e.preventDefault();
+});
+sigCanvas.addEventListener('pointermove',function(e){
+  if(!sigDrawing) return;
+  var p=getPos(e); sigCtx.lineTo(p.x,p.y); sigCtx.stroke(); sigCtx.beginPath(); sigCtx.moveTo(p.x,p.y); e.preventDefault();
+});
+sigCanvas.addEventListener('pointerup',function(){ sigDrawing=false; });
+sigCanvas.addEventListener('pointerleave',function(){ sigDrawing=false; });
+
+function confirmSignin(){
+  if(!curActor) return;
+  var t=nowStr();
+  SS.records.push({name:curActor.name, role:curActor.role||'', callTime:curActor.callTime||'', signedAt:t, timestamp:Date.now()});
+  save();
+  document.getElementById('signin-view').style.display='none';
+  document.getElementById('sv-name').textContent=curActor.name;
+  document.getElementById('sv-signed').textContent='Signed in at '+t;
+  var sv=document.getElementById('success-view');
+  sv.style.display='flex';
+  setTimeout(function(){ sv.style.display='none'; curActor=null; renderGrid(); }, 2800);
+}
+
+// ─── SETUP ───────────────────────────────────────────────────────────
+function openSetup(){
+  document.getElementById('su-show').value=SS.show||'';
+  document.getElementById('su-date').value=SS.date||'';
+  renderEntries();
+  document.getElementById('setup-ov').style.display='flex';
+}
+function closeSetup(){ document.getElementById('setup-ov').style.display='none'; }
+
+function renderEntries(){
+  var el=document.getElementById('cast-entries');
+  el.innerHTML='';
+  SS.cast.forEach(function(c,i){
+    var row=document.createElement('div');
+    row.className='entry-row';
+    row.innerHTML=
+      '<input class="inp" type="text" value="'+esc(c.name)+'" data-i="'+i+'" data-f="name" oninput="updF(this)">'+
+      '<input class="inp" type="text" value="'+esc(c.role||'')+'" data-i="'+i+'" data-f="role" oninput="updF(this)">'+
+      '<input class="inp" type="text" value="'+esc(c.callTime||'')+'" data-i="'+i+'" data-f="callTime" placeholder="07:30" oninput="updF(this)">'+
+      '<button class="rm-btn" onclick="rmEntry('+i+')">✕</button>';
+    el.appendChild(row);
+  });
+}
+
+window.updF=function(el){ var i=+el.dataset.i; if(SS.cast[i]) SS.cast[i][el.dataset.f]=el.value; };
+window.rmEntry=function(i){ SS.cast.splice(i,1); renderEntries(); };
+window.addEntry=function(){
+  SS.cast.push({name:'',role:'',callTime:''});
+  renderEntries();
+  var rows=document.querySelectorAll('.entry-row');
+  if(rows.length) rows[rows.length-1].querySelector('input').focus();
+};
+window.pullFromTracker=function(){
+  try{
+    var ct=JSON.parse(localStorage.getItem('st-s')||'{}');
+    if(!ct.cast||!ct.cast.length){ alert('No cast found in Crew Tracker. Load a call sheet there first.'); return; }
+    SS.cast=ct.cast.filter(function(c){ return c.name; }).map(function(c){
+      return{name:c.name, role:c.role||'', callTime:c.callTime||c.onSetTime||''};
+    });
+    if(ct.prod&&ct.prod.date&&!document.getElementById('su-date').value) document.getElementById('su-date').value=ct.prod.date;
+    if(ct.prod&&ct.prod.title&&!document.getElementById('su-show').value) document.getElementById('su-show').value=ct.prod.title;
+    renderEntries();
+  }catch(e){ alert('Could not read Crew Tracker data.'); }
+};
+window.parsePaste=function(){
+  var text=document.getElementById('paste-area').value.trim();
+  if(!text) return;
+  text.split('\n').forEach(function(line){
+    var p=line.split(',').map(function(s){ return s.trim(); });
+    if(p[0]) SS.cast.push({name:p[0], role:p[1]||'', callTime:p[2]||''});
+  });
+  document.getElementById('paste-area').value='';
+  renderEntries();
+};
+window.saveSetup=function(){
+  SS.show=document.getElementById('su-show').value.trim();
+  SS.date=document.getElementById('su-date').value.trim();
+  SS.cast=SS.cast.filter(function(c){ return c.name&&c.name.trim(); });
+  save(); closeSetup(); renderGrid();
+};
+window.clearRecs=function(){
+  if(!confirm('Clear all sign-in records for today? This cannot be undone.')) return;
+  SS.records=[]; save(); renderGrid();
+};
+window.openSetup=openSetup;
+window.closeSetup=closeSetup;
+window.closeSignin=closeSignin;
+window.clearSig=clearSig;
+window.confirmSignin=confirmSignin;
+
+// ─── RECORDS ────────────────────────────────────────────────────────
+window.openRecords=function(){
+  var tb=document.getElementById('rec-tbody');
+  tb.innerHTML='';
+  var cast=SS.cast.filter(function(c){ return c.name; });
+  if(!cast.length){ tb.innerHTML='<tr><td colspan="4" style="padding:20px 16px;color:var(--text3);text-align:center">No cast loaded</td></tr>'; }
+  cast.forEach(function(c){
+    var rec=SS.records.find(function(r){ return r.name===c.name; });
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+esc(c.name)+'</td>'+
+      '<td style="color:var(--text2)">'+esc(c.role||'')+'</td>'+
+      '<td style="font-family:var(--mono);font-size:12px">'+(c.callTime?fmt12(c.callTime):'—')+'</td>'+
+      '<td class="'+(rec?'rec-ok':'rec-pending')+'">'+(rec?'✓ '+esc(rec.signedAt):'Not yet')+'</td>';
+    tb.appendChild(tr);
+  });
+  document.getElementById('records-ov').style.display='flex';
+};
+window.closeRecords=function(){ document.getElementById('records-ov').style.display='none'; };
+window.exportCSV=function(){
+  var rows=[['Name','Role','Call Time','Signed In At']];
+  SS.cast.filter(function(c){ return c.name; }).forEach(function(c){
+    var rec=SS.records.find(function(r){ return r.name===c.name; });
+    rows.push([c.name, c.role||'', c.callTime?fmt12(c.callTime):'', rec?rec.signedAt:'']);
+  });
+  var csv=rows.map(function(r){ return r.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  var a=document.createElement('a');
+  a.href='data:text/csv,'+encodeURIComponent(csv);
+  a.download='signin-'+(SS.date||'today').replace(/[\s,]+/g,'-')+'.csv';
+  a.click();
+};
+
+window.addEventListener('resize', function(){ if(curActor&&sigCanvas){ var r=sigCanvas.getBoundingClientRect(); sigCanvas.width=Math.floor(r.width); sigCanvas.height=Math.floor(r.height); sigCtx=sigCanvas.getContext('2d'); applySigStyle(); } });
+
+renderGrid();
+})();
+</script>
+</body>
+</html>
