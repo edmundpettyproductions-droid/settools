@@ -44,7 +44,7 @@ button{cursor:pointer}a{text-decoration:none}
 .cast-card:not(.signed-in):active{transform:scale(.95)}
 .cast-card.signed-in{border-color:var(--success);background:rgba(52,211,153,.06);cursor:default}
 .cc-badge{position:absolute;top:10px;right:12px;color:var(--success);font-size:clamp(16px,2.5vw,28px);font-weight:700}
-.cc-name{font-size:clamp(18px,4vw,48px);font-weight:700;color:var(--text);line-height:1.15;font-family:var(--cond)}
+.cc-name{font-size:clamp(14px,2vw,26px);font-weight:700;color:var(--text);line-height:1.2;font-family:var(--cond);word-break:break-word;overflow-wrap:break-word;max-width:100%}
 .cast-card.signed-in .cc-name{color:var(--text2)}
 .cc-role{font-size:clamp(10px,1.5vw,18px);color:var(--text2);margin-top:4px}
 .cc-call{font-family:var(--mono);font-size:clamp(10px,1.4vw,16px);color:var(--accent);margin-top:6px}
@@ -162,7 +162,7 @@ inp:focus{border-color:var(--accent)}
     <div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
         <lbl style="margin:0">Cast List</lbl>
-        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pullFromTracker()">↓ Pull from Crew Tracker</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pullFromTracker()">↓ Pull Cast from Crew Tracker</button>
       </div>
       <div class="col-hdrs-row"><div class="col-h">Name</div><div class="col-h">Role / Character</div><div class="col-h">Call Time</div><div></div></div>
       <div id="cast-entries" style="display:flex;flex-direction:column;gap:5px"></div>
@@ -172,6 +172,18 @@ inp:focus{border-color:var(--accent)}
       <lbl>Or Paste List (one per line: Name, Role, Call Time)</lbl>
       <textarea class="ta" id="paste-area" rows="4" placeholder="Jane Smith, Olivia, 07:30&#10;John Doe, Detective, 09:00&#10;Sam Lee, Guard, 10:00"></textarea>
       <button class="btn btn-ghost" onclick="parsePaste()" style="margin-top:6px">Import from Text</button>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:14px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:10px">Station Messages</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div><lbl>Station Title</lbl><input class="inp" type="text" id="su-title" placeholder="Sign-In Station"></div>
+        <div><lbl>Custom Note (shown after confirmation)</lbl><input class="inp" type="text" id="su-note" placeholder="e.g. Please see the 2nd AD"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr;gap:10px">
+        <div><lbl>Signature Prompt</lbl><input class="inp" type="text" id="su-sigprompt" placeholder="Please sign below to confirm your arrival"></div>
+        <div><lbl>Sign-In Confirmation Message</lbl><input class="inp" type="text" id="su-confirmmsg" placeholder="Thank you! Have a great shoot."></div>
+        <div><lbl>Sign-Out Message</lbl><input class="inp" type="text" id="su-signoutmsg" placeholder="Have a great rest of your day!"></div>
+      </div>
     </div>
   </div>
   <div class="mftr">
@@ -188,13 +200,14 @@ inp:focus{border-color:var(--accent)}
   <div class="mhdr">
     <h2>Sign-In Records</h2>
     <div style="display:flex;gap:7px">
+      <button class="btn btn-ghost" onclick="exportPDF()">Export PDF</button>
       <button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button>
       <button class="btn btn-ghost" onclick="closeRecords()">✕</button>
     </div>
   </div>
   <div class="mbody" style="padding:0">
     <table id="rec-table">
-      <thead><tr><th>Name</th><th>Role</th><th>Call</th><th>Signed In</th></tr></thead>
+      <thead><tr><th>Name</th><th>Role</th><th>Call</th><th>Signed In</th><th>Signed Out</th></tr></thead>
       <tbody id="rec-tbody"></tbody>
     </table>
   </div>
@@ -204,7 +217,8 @@ inp:focus{border-color:var(--accent)}
 <script>
 (function(){
 
-var SS = JSON.parse(localStorage.getItem('ST_signin') || '{"cast":[],"records":[],"show":"","date":""}');
+var SS = JSON.parse(localStorage.getItem('ST_signin') || '{"cast":[],"records":[],"show":"","date":"","settings":{"stationTitle":"Sign-In Station","sigPrompt":"Please sign below to confirm your arrival","confirmMsg":"Thank you! Have a great shoot.","signoutMsg":"Have a great rest of your day!","customNote":""}}');
+if(!SS.settings) SS.settings={stationTitle:'Sign-In Station',sigPrompt:'Please sign below to confirm your arrival',confirmMsg:'Thank you! Have a great shoot.',signoutMsg:'Have a great rest of your day!',customNote:''};
 function save(){ localStorage.setItem('ST_signin', JSON.stringify(SS)); }
 
 function fmt12(t){
@@ -231,6 +245,7 @@ function renderGrid(){
   gv.style.gridTemplateColumns='repeat('+cols+',1fr)';
   gv.style.gridTemplateRows='repeat('+rows+',1fr)';
   var signed=SS.records.length;
+  document.getElementById('hdr-title').textContent=SS.settings.stationTitle||'Sign-In Station';
   document.getElementById('hdr-info').textContent=(SS.show||'Set Tools')+' · '+(SS.date||'')+' · '+signed+'/'+cast.length+' signed in';
   gv.innerHTML='';
   cast.forEach(function(c){
@@ -287,6 +302,7 @@ function openSignin(actor){
     }
   }catch(e){}
   document.getElementById('si-scenes').textContent=scenes;
+  document.getElementById('si-sig-lbl').textContent=SS.settings.sigPrompt||'Please sign below to confirm your arrival';
   var sv=document.getElementById('signin-view');
   sv.style.display='flex';
   setTimeout(function(){
@@ -339,7 +355,7 @@ function confirmSignin(){
   document.getElementById('sv-icon').textContent='✓';
   document.getElementById('sv-name').textContent=curActor.name;
   document.getElementById('sv-signed').textContent='Signed in at '+t;
-  document.getElementById('sv-msg').textContent='Thank you! Please see a PA.';
+  document.getElementById('sv-msg').textContent=(SS.settings.confirmMsg||'Thank you!')+(SS.settings.customNote?' · '+SS.settings.customNote:'');
   var sv=document.getElementById('success-view');
   sv.style.display='flex';
   setTimeout(function(){ sv.style.display='none'; curActor=null; renderGrid(); }, 2800);
@@ -353,7 +369,7 @@ function confirmSignout(actor){
   document.getElementById('sv-icon').textContent='↩';
   document.getElementById('sv-name').textContent=actor.name;
   document.getElementById('sv-signed').textContent='Signed out at '+rec.signedOutAt;
-  document.getElementById('sv-msg').textContent='Have a great rest of your day!';
+  document.getElementById('sv-msg').textContent=SS.settings.signoutMsg||'Have a great rest of your day!';
   var sv=document.getElementById('success-view');
   sv.style.display='flex';
   setTimeout(function(){ sv.style.display='none'; renderGrid(); }, 2500);
@@ -363,6 +379,11 @@ function confirmSignout(actor){
 function openSetup(){
   document.getElementById('su-show').value=SS.show||'';
   document.getElementById('su-date').value=SS.date||'';
+  document.getElementById('su-title').value=SS.settings.stationTitle||'';
+  document.getElementById('su-note').value=SS.settings.customNote||'';
+  document.getElementById('su-sigprompt').value=SS.settings.sigPrompt||'';
+  document.getElementById('su-confirmmsg').value=SS.settings.confirmMsg||'';
+  document.getElementById('su-signoutmsg').value=SS.settings.signoutMsg||'';
   renderEntries();
   document.getElementById('setup-ov').style.display='flex';
 }
@@ -416,6 +437,11 @@ window.parsePaste=function(){
 window.saveSetup=function(){
   SS.show=document.getElementById('su-show').value.trim();
   SS.date=document.getElementById('su-date').value.trim();
+  SS.settings.stationTitle=document.getElementById('su-title').value.trim()||'Sign-In Station';
+  SS.settings.customNote=document.getElementById('su-note').value.trim();
+  SS.settings.sigPrompt=document.getElementById('su-sigprompt').value.trim()||'Please sign below to confirm your arrival';
+  SS.settings.confirmMsg=document.getElementById('su-confirmmsg').value.trim()||'Thank you! Have a great shoot.';
+  SS.settings.signoutMsg=document.getElementById('su-signoutmsg').value.trim()||'Have a great rest of your day!';
   SS.cast=SS.cast.filter(function(c){ return c.name&&c.name.trim(); });
   save(); closeSetup(); renderGrid();
 };
@@ -441,17 +467,64 @@ window.openRecords=function(){
     tr.innerHTML='<td>'+esc(c.name)+'</td>'+
       '<td style="color:var(--text2)">'+esc(c.role||'')+'</td>'+
       '<td style="font-family:var(--mono);font-size:12px">'+(c.callTime?fmt12(c.callTime):'—')+'</td>'+
-      '<td class="'+(rec?'rec-ok':'rec-pending')+'">'+(rec?'✓ '+esc(rec.signedAt):'Not yet')+'</td>';
+      '<td class="'+(rec?'rec-ok':'rec-pending')+'">'+(rec?'✓ '+esc(rec.signedAt):'Not yet')+'</td>'+
+      '<td class="'+(rec&&rec.signedOutAt?'rec-ok':'rec-pending')+'">'+(rec&&rec.signedOutAt?'↩ '+esc(rec.signedOutAt):'—')+'</td>';
     tb.appendChild(tr);
   });
   document.getElementById('records-ov').style.display='flex';
 };
 window.closeRecords=function(){ document.getElementById('records-ov').style.display='none'; };
+window.exportPDF=function(){
+  var cast=SS.cast.filter(function(c){ return c.name; });
+  var rows=cast.map(function(c){
+    var rec=SS.records.find(function(r){ return r.name===c.name; });
+    return {name:c.name, role:c.role||'', call:c.callTime?fmt12(c.callTime):'—',
+      signedAt:rec?rec.signedAt:'', signedOutAt:rec&&rec.signedOutAt?rec.signedOutAt:'', sig:rec&&rec.sig?rec.sig:''};
+  });
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Sign-In Report — '+esc(SS.show||'')+'</title><style>'+
+    'body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:20px}'+
+    'h1{font-size:16px;margin-bottom:4px}'+
+    '.meta{font-size:11px;color:#555;margin-bottom:16px}'+
+    'table{width:100%;border-collapse:collapse}'+
+    'th{background:#1a3530;color:#fff;padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em}'+
+    'td{padding:6px 10px;border-bottom:1px solid #ddd;vertical-align:middle}'+
+    'tr:nth-child(even) td{background:#f7f7f7}'+
+    '.sig-cell{text-align:center;padding:4px}'+
+    '.sig-cell img{max-width:140px;max-height:44px;display:block;margin:0 auto}'+
+    '.no-sig{color:#aaa;font-style:italic;font-size:10px}'+
+    '.ok{color:#0a7a4a;font-weight:600} .pending{color:#aaa}'+
+    '@media print{body{padding:0}button{display:none}}'+
+    '</style></head><body>'+
+    '<h1>Sign-In Report — '+esc(SS.show||'Production')+'</h1>'+
+    '<div class="meta">Date: '+esc(SS.date||'')+'&nbsp;&nbsp;·&nbsp;&nbsp;'+
+    rows.filter(function(r){return r.signedAt;}).length+' / '+rows.length+' signed in</div>'+
+    '<table><thead><tr><th>#</th><th>Name</th><th>Role</th><th>Call</th><th>Signed In</th><th>Signed Out</th><th>Signature</th></tr></thead><tbody>'+
+    rows.map(function(r,i){
+      return '<tr>'+
+        '<td>'+(i+1)+'</td>'+
+        '<td><strong>'+esc(r.name)+'</strong></td>'+
+        '<td>'+esc(r.role)+'</td>'+
+        '<td style="font-family:monospace">'+esc(r.call)+'</td>'+
+        '<td class="'+(r.signedAt?'ok':'pending')+'" style="font-family:monospace">'+(r.signedAt?'✓ '+esc(r.signedAt):'Not signed in')+'</td>'+
+        '<td class="'+(r.signedOutAt?'ok':'pending')+'" style="font-family:monospace">'+(r.signedOutAt?'↩ '+esc(r.signedOutAt):'—')+'</td>'+
+        '<td class="sig-cell">'+(r.sig?'<img src="'+r.sig+'" alt="signature">':'<span class="no-sig">no signature</span>')+'</td>'+
+        '</tr>';
+    }).join('')+
+    '</tbody></table>'+
+    '<div style="margin-top:20px;font-size:10px;color:#aaa">Generated '+new Date().toLocaleString()+' · Set Tools Sign-In Station</div>'+
+    '<script>window.onload=function(){window.print();}<\/script>'+
+    '</body></html>';
+  var win=window.open('','_blank');
+  if(!win){alert('Pop-up blocked. Please allow pop-ups for this page to export PDF.');return;}
+  win.document.write(html);
+  win.document.close();
+};
+
 window.exportCSV=function(){
-  var rows=[['Name','Role','Call Time','Signed In At']];
+  var rows=[['Name','Role','Call Time','Signed In At','Signed Out At']];
   SS.cast.filter(function(c){ return c.name; }).forEach(function(c){
     var rec=SS.records.find(function(r){ return r.name===c.name; });
-    rows.push([c.name, c.role||'', c.callTime?fmt12(c.callTime):'', rec?rec.signedAt:'']);
+    rows.push([c.name, c.role||'', c.callTime?fmt12(c.callTime):'', rec?rec.signedAt:'', rec&&rec.signedOutAt?rec.signedOutAt:'']);
   });
   var csv=rows.map(function(r){ return r.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
   var a=document.createElement('a');

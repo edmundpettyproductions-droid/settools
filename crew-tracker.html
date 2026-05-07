@@ -70,6 +70,29 @@ nav{position:fixed;top:var(--bh);left:0;right:0;z-index:100;background:var(--bg2
 .finput:focus{border-color:var(--accent)}
 .modal-btns{display:flex;gap:7px;justify-content:flex-end;margin-top:14px}
 
+/* PROJECT MODAL */
+.proj-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:700;display:none;align-items:center;justify-content:center;padding:16px}
+.proj-modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;width:min(720px,96vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.proj-mhdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.proj-mhdr h2{font-family:var(--cond);font-size:18px;font-weight:700;color:var(--accent);letter-spacing:.04em}
+.proj-mbody{display:grid;grid-template-columns:200px 1fr;flex:1;overflow:hidden;min-height:0}
+.proj-col{display:flex;flex-direction:column;overflow:hidden}
+.proj-col-hdr{padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--bg3)}
+.proj-col-hdr span{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+.proj-col-body{flex:1;overflow-y:auto}
+.proj-item{padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s;border-right:3px solid transparent}
+.proj-item:hover{background:var(--bg3)}
+.proj-item.sel{background:rgba(240,192,64,.08);border-right-color:var(--accent)}
+.proj-item-name{font-size:13px;font-weight:600;color:var(--text)}
+.proj-item-meta{font-size:10px;color:var(--text3);margin-top:2px}
+.day-item{display:flex;align-items:center;padding:8px 14px;border-bottom:1px solid var(--border);gap:10px;transition:background .1s}
+.day-item:hover{background:var(--bg3)}
+.day-item.active-day{background:rgba(240,192,64,.06)}
+.day-label{font-size:13px;font-weight:600;color:var(--text)}
+.day-meta{font-size:10px;color:var(--text3);margin-top:1px}
+.proj-mftr{padding:12px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#proj-badge{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:3px;background:rgba(240,192,64,.1);color:var(--accent);border:1px solid rgba(240,192,64,.2);cursor:pointer;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+
 /* CONTEXT MENU */
 #ctx-menu{position:fixed;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;padding:4px;z-index:600;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 #ctx-menu.hidden{display:none}
@@ -285,6 +308,39 @@ table.dood td.nc.checked{color:var(--success)}
 </div>
 </div>
 
+<!-- PROJECTS MODAL -->
+<div class="proj-overlay" id="proj-overlay">
+<div class="proj-modal">
+  <div class="proj-mhdr">
+    <h2>📁 Projects &amp; Days</h2>
+    <button class="btn btn-sm" style="background:none;border:1px solid var(--border2);color:var(--text2)" onclick="closeProjects()">✕</button>
+  </div>
+  <div class="proj-mbody">
+    <div class="proj-col" style="border-right:1px solid var(--border)">
+      <div class="proj-col-hdr">
+        <span>Projects</span>
+        <button class="btn btn-sm" style="font-size:10px;padding:3px 8px;background:none;border:1px solid var(--border2);color:var(--text2)" onclick="newProject()">+ New</button>
+      </div>
+      <div class="proj-col-body" id="proj-list"></div>
+    </div>
+    <div class="proj-col">
+      <div class="proj-col-hdr">
+        <span>Saved Days</span>
+        <button class="btn btn-sm" style="font-size:10px;padding:3px 8px;background:none;border:1px solid var(--border2);color:var(--text2)" onclick="newDayFromCurrent()">+ New Day from Today</button>
+      </div>
+      <div class="proj-col-body" id="proj-days"></div>
+    </div>
+  </div>
+  <div class="proj-mftr">
+    <div id="proj-active-label" style="font-size:11px;font-family:var(--mono);color:var(--text2)">No active project</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" style="background:none;border:1px solid var(--border2);color:var(--text2)" onclick="closeProjects()">Close</button>
+      <button class="btn btn-a btn-sm" onclick="saveCurrentDay()">💾 Save Current Day</button>
+    </div>
+  </div>
+</div>
+</div>
+
 <!-- CONTEXT MENU -->
 <div id="ctx-menu" class="hidden">
   <div class="ctx-item" id="ctx-adjust">Adjust call time…</div>
@@ -327,6 +383,8 @@ table.dood td.nc.checked{color:var(--success)}
   <button class="nav-link" id="nl-sched" onclick="showPage('sched')">03 · Schedule</button>
   <button class="nav-link" id="nl-dood" onclick="showPage('dood')">04 · Day Out of Days</button>
   <div class="nav-right">
+    <div id="proj-badge" onclick="openProjects()" title="Projects &amp; Day Management">No Project</div>
+    <button class="nav-btn" onclick="openProjects()" title="Projects &amp; Day Management" style="font-size:14px;padding:3px 6px">📁</button>
     <button class="nav-btn" onclick="openSettings()" title="API Key Settings">⚙</button>
   </div>
 </nav>
@@ -2068,6 +2126,176 @@ renderSched();renderSceneStrip();
 renderDoods();renderDoodDeptList();
 initWeather();
 showPage('home');
+
+// ── PROJECT SYSTEM ────────────────────────────────────────────────────────────
+var PT = JSON.parse(localStorage.getItem('ST_projects') || '{"projects":[],"current":null}');
+function savePT(){ try{ localStorage.setItem('ST_projects', JSON.stringify(PT)); }catch(e){ alert('Storage limit reached. Delete old days to free space.'); } }
+
+var projSelected = null;
+
+function openProjects(){
+  projSelected = PT.current ? PT.current.projId : (PT.projects.length ? PT.projects[0].id : null);
+  renderProjectModal();
+  document.getElementById('proj-overlay').style.display='flex';
+}
+function closeProjects(){ document.getElementById('proj-overlay').style.display='none'; }
+
+function esc2(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderProjectModal(){
+  // Projects list
+  var pl=document.getElementById('proj-list');
+  pl.innerHTML='';
+  if(!PT.projects.length){
+    pl.innerHTML='<div style="padding:16px 14px;color:var(--text3);font-size:12px">No projects yet.<br>Click "+ New" to create one.</div>';
+  }
+  PT.projects.forEach(function(p){
+    var el=document.createElement('div');
+    el.className='proj-item'+(p.id===projSelected?' sel':'');
+    el.innerHTML='<div class="proj-item-name">'+esc2(p.name)+'</div>'+
+      '<div class="proj-item-meta">'+p.days.length+' day'+(p.days.length!==1?'s':'')+
+      (p.created?' · '+new Date(p.created).toLocaleDateString():'')+'</div>';
+    el.onclick=function(){ projSelected=p.id; renderProjectModal(); };
+    pl.appendChild(el);
+  });
+  // Days list
+  var dl=document.getElementById('proj-days');
+  dl.innerHTML='';
+  var proj=PT.projects.find(function(p){ return p.id===projSelected; });
+  if(!proj){
+    dl.innerHTML='<div style="padding:16px 14px;color:var(--text3);font-size:12px">Select a project to see saved days.</div>';
+  } else if(!proj.days.length){
+    dl.innerHTML='<div style="padding:16px 14px;color:var(--text3);font-size:12px">No saved days yet.<br>Use "Save Current Day" or "+ New Day from Today".</div>';
+  } else {
+    proj.days.forEach(function(d,i){
+      var isActive=PT.current&&PT.current.projId===proj.id&&PT.current.dayIdx===i;
+      var el=document.createElement('div');
+      el.className='day-item'+(isActive?' active-day':'');
+      el.innerHTML='<div style="flex:1"><div class="day-label">'+esc2(d.label||'Day '+(i+1))+'</div>'+
+        '<div class="day-meta">'+esc2(d.date||'')+
+        (d.saved?' · Saved '+new Date(d.saved).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'')+'</div></div>'+
+        '<div style="display:flex;gap:5px;align-items:center">'+
+        (isActive?'<span style="font-size:10px;color:var(--success);font-family:var(--mono)">● Active</span>':
+          '<button class="btn btn-sm" style="font-size:10px;padding:3px 9px;background:none;border:1px solid var(--border2);color:var(--text2)" onclick="loadDay(\''+proj.id+'\','+i+')">Load</button>')+
+        '<button class="btn btn-sm" style="font-size:10px;padding:3px 7px;background:none;border:1px solid var(--danger);color:var(--danger)" onclick="deleteDay(\''+proj.id+'\','+i+')" title="Delete">✕</button>'+
+        '</div>';
+      dl.appendChild(el);
+    });
+  }
+  // Footer status
+  var cur=PT.current;
+  var curProj=cur?PT.projects.find(function(p){ return p.id===cur.projId; }):null;
+  var curDay=curProj?curProj.days[cur.dayIdx]:null;
+  document.getElementById('proj-active-label').textContent=
+    curProj&&curDay?'Active: '+curProj.name+' — '+curDay.label:'No active project loaded';
+}
+
+function saveCurrentDay(){
+  if(!PT.projects.length){ alert('Create a project first using the "+ New" button.'); return; }
+  var targetId=projSelected||(PT.current&&PT.current.projId)||PT.projects[0].id;
+  var proj=PT.projects.find(function(p){ return p.id===targetId; });
+  if(!proj){ alert('Select a project first.'); return; }
+  // Use existing label if updating, otherwise prompt
+  var isUpdate=PT.current&&PT.current.projId===targetId;
+  var existingLabel=isUpdate?proj.days[PT.current.dayIdx]&&proj.days[PT.current.dayIdx].label:'';
+  var label=existingLabel||(S.prod.day&&S.prod.day.trim()?S.prod.day:null)||prompt('Day label (e.g. "Day 1"):','Day '+(proj.days.length+1));
+  if(!label) return;
+  var snapshot={id:'day-'+Date.now(),label:label.trim(),date:S.prod.date||'',saved:Date.now(),state:JSON.parse(JSON.stringify(S))};
+  if(isUpdate&&proj.days[PT.current.dayIdx]){
+    snapshot.id=proj.days[PT.current.dayIdx].id;
+    proj.days[PT.current.dayIdx]=snapshot;
+  } else {
+    proj.days.push(snapshot);
+    PT.current={projId:targetId,dayIdx:proj.days.length-1};
+  }
+  savePT(); renderProjectModal(); updateProjBadge();
+  // Brief button feedback
+  var btn=event&&event.currentTarget;
+  if(btn){ var orig=btn.textContent; btn.textContent='✓ Saved'; setTimeout(function(){ btn.textContent=orig; },1800); }
+}
+
+function loadDay(projId,dayIdx){
+  var proj=PT.projects.find(function(p){ return p.id===projId; });
+  if(!proj||!proj.days[dayIdx]) return;
+  if(!confirm('Load "'+proj.days[dayIdx].label+'"?\n\nUnsaved changes to the current state will be lost.')) return;
+  S=JSON.parse(JSON.stringify(proj.days[dayIdx].state));
+  PT.current={projId:projId,dayIdx:dayIdx};
+  savePT(); save();
+  renderAll(); closeProjects(); updateProjBadge();
+}
+
+function newDayFromCurrent(){
+  if(!PT.projects.length||!projSelected){ alert('Select a project first.'); return; }
+  var proj=PT.projects.find(function(p){ return p.id===projSelected; });
+  if(!proj) return;
+  if(!confirm('Start a new shooting day?\n\nThis will carry over your crew roster and DOOD schedule. Cast arrivals and today\'s scene order will reset. You\'ll need to upload a new call sheet.')) return;
+  var newS={
+    apiKey:S.apiKey,
+    prod:{company:S.prod.company,title:S.prod.title,day:'',date:'',generalCall:'',shootingCall:'',lunchTime:'',director:'',location:''},
+    cast:JSON.parse(JSON.stringify(S.cast||[])).map(function(c){
+      return Object.assign({},c,{arrived:false,arrivedAt:null,kioskIn:null,kioskOut:null,wrapTime:null,adjMins:0,adjNote:''});
+    }),
+    crew:JSON.parse(JSON.stringify(S.crew||[])).map(function(c){
+      return Object.assign({},c,{arrived:false,arrivedAt:null,adjMins:0,adjNote:''});
+    }),
+    scenes:[],
+    doods:JSON.parse(JSON.stringify(S.doods||[])),
+    currentSceneIdx:-1,
+    scenesReordered:false,
+    schedFlags:[]
+  };
+  S=newS; save();
+  var label='Day '+(proj.days.length+1);
+  proj.days.push({id:'day-'+Date.now(),label:label,date:'',saved:null,state:JSON.parse(JSON.stringify(S))});
+  PT.current={projId:proj.id,dayIdx:proj.days.length-1};
+  savePT(); renderAll(); closeProjects(); updateProjBadge();
+}
+
+function newProject(){
+  var name=prompt('Production / Show name:','');
+  if(!name||!name.trim()) return;
+  var proj={id:'proj-'+Date.now(),name:name.trim(),created:Date.now(),days:[]};
+  PT.projects.push(proj);
+  projSelected=proj.id;
+  savePT(); renderProjectModal();
+}
+
+function deleteDay(projId,dayIdx){
+  var proj=PT.projects.find(function(p){ return p.id===projId; });
+  if(!proj||!proj.days[dayIdx]) return;
+  if(!confirm('Delete "'+proj.days[dayIdx].label+'" from "'+proj.name+'"?\nThis cannot be undone.')) return;
+  proj.days.splice(dayIdx,1);
+  if(PT.current&&PT.current.projId===projId){
+    if(PT.current.dayIdx===dayIdx) PT.current=null;
+    else if(PT.current.dayIdx>dayIdx) PT.current.dayIdx--;
+  }
+  savePT(); renderProjectModal(); updateProjBadge();
+}
+
+function updateProjBadge(){
+  var el=document.getElementById('proj-badge');
+  if(!el) return;
+  var cur=PT.current;
+  if(!cur){ el.textContent='No Project'; el.style.opacity='.45'; return; }
+  var proj=PT.projects.find(function(p){ return p.id===cur.projId; });
+  var day=proj&&proj.days[cur.dayIdx];
+  el.textContent=(proj?proj.name:'?')+' · '+(day?day.label:'?');
+  el.style.opacity='1';
+}
+
+function renderAll(){
+  renderCastTable(); renderCastArrivals(); refreshCastTimers();
+  renderCrewRoster(); renderCrewArrivals(); refreshCrewTimers();
+  renderSched(); renderSceneStrip(); renderSchedFlags();
+  renderDoods(); renderDoodDeptList();
+  if(S.prod.title){
+    document.getElementById('b-title').textContent=(S.prod.company?S.prod.company+' · ':'')+S.prod.title;
+    document.getElementById('b-day').textContent=S.prod.day+' · '+S.prod.date;
+    document.getElementById('b-call').textContent=S.prod.generalCall||S.prod.shootingCall||'—';
+  }
+}
+
+updateProjBadge();
 </script>
 </body>
 </html>
