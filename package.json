@@ -12,7 +12,8 @@
   },
   "devDependencies": {
     "http-server": "^14.1.1",
-    "prettier": "^3.4.2"
+    "prettier": "^3.4.2",
+    "supabase": "^2.98.2"
   },
   "engines": {
     "node": ">=20"
