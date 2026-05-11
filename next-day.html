@@ -65,6 +65,7 @@ lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--tex
 .status.loading{background:rgba(167,139,250,.12);color:var(--accent)}
 .status.ok{background:rgba(52,211,153,.12);color:var(--success)}
 .status.err{background:rgba(224,90,90,.12);color:var(--danger)}
+.status.warn{background:rgba(240,192,64,.12);color:#f0c040}
 .spin{display:inline-block;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -115,8 +116,15 @@ lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--tex
 .email-panel-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg3);flex-shrink:0}
 .email-panel-hdr span{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2)}
 .email-panel-body{flex:1;padding:12px}
-#email-output{min-height:340px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:12px;font-family:var(--mono);font-size:12px;color:var(--text);white-space:pre-wrap;line-height:1.6;overflow-y:auto}
-#email-output.placeholder{color:var(--text3);font-style:italic}
+/* shared editor surface */
+.email-editor-surface{min-height:340px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:14px;font-size:13px;color:var(--text);line-height:1.65;overflow-y:auto;outline:none;cursor:text}
+.email-editor-surface:focus{border-color:var(--accent)}
+.email-editor-surface.has-placeholder::before{content:attr(data-placeholder);color:var(--text3);font-style:italic;pointer-events:none}
+.email-editor-surface.mono{font-family:var(--mono);white-space:pre-wrap}
+#email-output.placeholder{color:var(--text3);font-style:italic;font-family:var(--mono);white-space:pre-wrap}
+#email-output{min-height:340px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:14px;font-size:13px;color:var(--text);line-height:1.65;overflow-y:auto}
+/* badge shown on top of output when HTML formatting is preserved */
+.fmt-badge{font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(76,175,125,.14);color:var(--success);font-family:var(--mono);letter-spacing:.04em}
 
 /* ── TAB 4: DISTRIBUTION ── */
 #dist-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
@@ -125,12 +133,12 @@ lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--tex
 .dist-panel-hdr{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg3);display:flex;align-items:center;justify-content:space-between}
 .dist-panel-hdr span{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2)}
 .dist-panel-body{padding:12px;display:flex;flex-direction:column;gap:8px;max-height:500px;overflow-y:auto}
-.contact-row{display:grid;grid-template-columns:1fr 90px 1fr 24px;gap:6px;align-items:center}
+.contact-row{display:grid;grid-template-columns:1fr 80px 1fr 110px 24px;gap:6px;align-items:center}
 .contact-row input{background:var(--bg3);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:5px 8px;outline:none;width:100%}
 .contact-row input:focus{border-color:var(--accent)}
 .rm-btn{background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;padding:3px;border-radius:3px;line-height:1}
 .rm-btn:hover{background:rgba(224,90,90,.12)}
-.contact-hdrs{display:grid;grid-template-columns:1fr 90px 1fr 24px;gap:6px;margin-bottom:2px}
+.contact-hdrs{display:grid;grid-template-columns:1fr 80px 1fr 110px 24px;gap:6px;margin-bottom:2px}
 .contact-hdr{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);padding:0 2px}
 .manifest-row{display:flex;align-items:center;gap:10px;padding:6px 12px;border-bottom:1px solid rgba(42,34,69,.5)}
 .manifest-row:last-child{border-bottom:none}
@@ -150,6 +158,47 @@ lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--tex
 /* NOTICE BOX */
 .notice{background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.25);border-radius:var(--radius);padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.6}
 .notice strong{color:var(--accent)}
+
+/* STEP LAYOUT */
+.step-block{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+.step-hdr{display:flex;align-items:flex-start;gap:14px;margin-bottom:4px}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#0d0b14;font-family:var(--cond);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.step-num.done{background:var(--success)}
+.step-title{font-family:var(--cond);font-size:14px;font-weight:700;letter-spacing:.04em;color:var(--text);text-transform:uppercase}
+.step-desc{font-size:11px;color:var(--text3);margin-top:3px;line-height:1.5}
+.step-divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.step-divider::before,.step-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── TAB 5: DAILY SIDES ── */
+.sd-two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:900px){.sd-two-col{grid-template-columns:1fr}}
+.sd-scene-list{display:flex;flex-direction:column;gap:5px;margin-top:8px;max-height:240px;overflow-y:auto}
+.sd-scene-item{display:grid;grid-template-columns:44px 1fr 22px;align-items:center;gap:8px;padding:5px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:4px}
+.sd-scene-num{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent)}
+.sd-scene-info{font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sd-scene-ord{font-family:var(--mono);font-size:10px;color:var(--text3);text-align:right}
+.sd-prog{display:flex;flex-direction:column;gap:9px;padding:14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-top:14px}
+.sd-prog-row{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text2)}
+.sd-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--border2);transition:background .2s}
+.sd-dot.run{background:var(--warn);animation:sdpulse .8s ease-in-out infinite}
+.sd-dot.done{background:var(--success)}
+.sd-dot.err{background:var(--danger)}
+@keyframes sdpulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sd-dl-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.sd-dl-btn{padding:11px 22px;border-radius:var(--radius);border:1px solid;cursor:pointer;font-size:13px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .15s}
+.sd-dl-btn.primary{background:var(--accent);color:#0d0b14;border-color:var(--accent)}
+.sd-dl-btn.primary:hover{background:var(--accent2);border-color:var(--accent2)}
+.sd-dl-btn.ghost{background:none;color:var(--text2);border-color:var(--border2)}
+.sd-dl-btn.ghost:hover{background:var(--bg3);color:var(--text);border-color:var(--accent)}
+.sd-dl-sub{font-size:10px;font-family:var(--mono);opacity:.65;font-weight:400}
+.sd-breakdown{display:flex;flex-direction:column;gap:4px;margin-top:14px}
+.sd-break-row{display:flex;align-items:center;gap:8px;padding:5px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:4px}
+.sd-break-num{font-family:var(--mono);font-size:11px;color:var(--accent);min-width:38px;flex-shrink:0}
+.sd-break-heading{flex:1;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sd-break-pages{font-family:var(--mono);font-size:10px;color:var(--text3);white-space:nowrap;flex-shrink:0}
+.sd-break-tag{font-size:10px;padding:2px 5px;border-radius:2px;flex-shrink:0}
+.sd-break-tag.ok{background:rgba(52,211,153,.12);color:var(--success)}
+.sd-break-tag.miss{background:rgba(224,90,90,.12);color:var(--danger)}
 </style>
 </head>
 <body>
@@ -166,64 +215,92 @@ lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--tex
   <button class="tab-btn" onclick="showTab('wx')">🌤 Weather</button>
   <button class="tab-btn" onclick="showTab('email')">✉ Email Updater</button>
   <button class="tab-btn" onclick="showTab('dist')">📬 Distribution</button>
+  <button class="tab-btn" onclick="showTab('sides')">📄 Daily Sides</button>
 </div>
 
 <div id="main">
 
 <!-- ── TAB 1: TOMORROW'S CALL ── -->
 <div class="tab-panel active" id="panel-sched">
-  <div class="notice">
-    <strong>Isolated from today's tools.</strong> Data entered here is for planning purposes only and does not affect Crew Tracker, Sign-In, or any current-day records. Upload the shooting schedule or call sheet that contains the <em>advanced schedule</em> section for tomorrow.
+
+  <!-- ── STEP 1 ── -->
+  <div class="step-block">
+    <div class="step-hdr">
+      <div class="step-num" id="step1-num">1</div>
+      <div>
+        <div class="step-title">Advanced Schedule + DOOD Verification</div>
+        <div class="step-desc">Upload today's call sheet — we'll extract the advanced schedule section from the bottom for tomorrow's scenes. Also upload the cast Days Out of Days to verify every scheduled cast member is coded as working tomorrow.</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+      <div>
+        <div class="sec-hdr">Today's Call Sheet</div>
+        <div class="upload-zone" id="adv-zone" onclick="document.getElementById('adv-input').click()" ondragover="ev(event);this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropAdv(event)">
+          <h3>Drop Today's Call Sheet PDF</h3>
+          <p>We'll extract tomorrow's advanced schedule from the bottom</p>
+        </div>
+        <input type="file" id="adv-input" accept=".pdf" onchange="if(this.files[0])procAdv(this.files[0]);this.value=''">
+        <div id="adv-status" style="margin-top:8px"></div>
+      </div>
+      <div>
+        <div class="sec-hdr">Cast Days Out of Days</div>
+        <div class="upload-zone" id="dood-zone" onclick="document.getElementById('dood-input').click()" ondragover="ev(event);this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropDood(event)">
+          <h3>Drop Cast DOOD PDF</h3>
+          <p>Verify each cast member's work code (W / H / SW…) for tomorrow</p>
+        </div>
+        <input type="file" id="dood-input" accept=".pdf" onchange="if(this.files[0])procDood(this.files[0]);this.value=''">
+        <div id="dood-status" style="margin-top:8px"></div>
+      </div>
+    </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
-    <!-- Strip / Advanced Schedule upload -->
-    <div>
-      <div class="sec-hdr">Shooting Schedule (Advanced)</div>
-      <div class="upload-zone" id="adv-zone" onclick="document.getElementById('adv-input').click()" ondragover="ev(event);this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropAdv(event)">
-        <h3>Drop Advanced Schedule PDF</h3>
-        <p>Shooting schedule containing next day's scenes &amp; breakdown</p>
-      </div>
-      <input type="file" id="adv-input" accept=".pdf" onchange="if(this.files[0])procAdv(this.files[0]);this.value=''">
-      <div id="adv-status" style="margin-top:8px"></div>
+  <!-- Step 1 output -->
+  <div id="sched-out" style="margin-top:16px;display:none">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+      <div class="sec-hdr" style="margin:0;border:none">Tomorrow's Schedule</div>
+      <div id="sched-out-meta" style="font-family:var(--mono);font-size:11px;color:var(--text2)"></div>
+      <button class="btn btn-ghost btn-sm" onclick="clearTomorrow()" style="margin-left:auto">✕ Clear All</button>
     </div>
-    <!-- Call sheet upload -->
-    <div>
-      <div class="sec-hdr">Call Sheet (Tomorrow's)</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px">Scene Order</div>
+        <div class="sched-row hdr-row">
+          <div>Sc#</div><div>Set</div><div>I/E</div><div>D/N</div><div>Pages</div><div style="text-align:right">Est. Time</div>
+        </div>
+        <div id="sched-grid"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px">Cast Calls <span style="color:var(--text3);font-style:italic">(from Step 2)</span></div>
+        <div id="cast-calls-grid" style="display:flex;flex-direction:column;gap:5px"></div>
+      </div>
+    </div>
+    <div id="prod-details" style="margin-top:14px;display:none">
+      <div class="sec-hdr">Production Details</div>
+      <div id="prod-details-body" style="display:flex;gap:24px;flex-wrap:wrap"></div>
+    </div>
+    <div id="sched-verify"></div>
+  </div>
+
+  <!-- ── STEP 2 ── -->
+  <div class="step-block" style="margin-top:14px" id="step2-block">
+    <div class="step-hdr">
+      <div class="step-num" id="step2-num">2</div>
+      <div>
+        <div class="step-title">Tomorrow's Call Sheet Draft</div>
+        <div class="step-desc">Upload the preliminary call sheet for tomorrow. We'll compare cast assignments, call times, and scene order against the advanced schedule and DOOD from Step 1.</div>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <div class="sec-hdr">Tomorrow's Preliminary Call Sheet</div>
       <div class="upload-zone" id="cs-zone" onclick="document.getElementById('cs-input').click()" ondragover="ev(event);this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropCS(event)">
-        <h3>Drop Tomorrow's Call Sheet PDF</h3>
-        <p>Cast call times, general call, location, shooting call</p>
+        <h3>Drop Tomorrow's Call Sheet Draft PDF</h3>
+        <p>Cast call times, general call, location, shooting call — compared against Step 1</p>
       </div>
       <input type="file" id="cs-input" accept=".pdf" onchange="if(this.files[0])procCS(this.files[0]);this.value=''">
       <div id="cs-status" style="margin-top:8px"></div>
     </div>
   </div>
 
-  <!-- Output -->
-  <div id="sched-out" style="margin-top:20px;display:none">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-      <div class="sec-hdr" style="margin:0;border:none" id="sched-out-title">Tomorrow's Schedule</div>
-      <div id="sched-out-meta" style="font-family:var(--mono);font-size:11px;color:var(--text2)"></div>
-      <button class="btn btn-ghost btn-sm" onclick="clearTomorrow()">✕ Clear</button>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Scene Order</div>
-        <div class="sched-row hdr-row">
-          <div>Sc#</div><div>Set</div><div>I/E</div><div>D/N</div><div>Pages</div><div style="text-align:right">Time</div>
-        </div>
-        <div id="sched-grid"></div>
-      </div>
-      <div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Cast Calls</div>
-        <div id="cast-calls-grid" style="display:flex;flex-direction:column;gap:6px"></div>
-      </div>
-    </div>
-    <div id="prod-details" style="margin-top:16px;display:none">
-      <div class="sec-hdr">Production Details</div>
-      <div id="prod-details-body" style="display:flex;gap:24px;flex-wrap:wrap"></div>
-    </div>
-  </div>
 </div>
 
 <!-- ── TAB 2: WEATHER ── -->
@@ -282,18 +359,36 @@ lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--tex
     <div class="email-panel">
       <div class="email-panel-hdr"><span>Previous Email</span></div>
       <div class="email-panel-body">
-        <textarea class="ta mono" id="email-input" rows="18" placeholder="Paste your previous email blast here…"></textarea>
+        <div class="email-editor-surface has-placeholder" id="email-input" contenteditable="true" data-placeholder="Paste your previous email blast here… All formatting, emojis, and styling will be captured and preserved."></div>
       </div>
     </div>
     <div class="email-panel">
       <div class="email-panel-hdr">
         <span>Updated Email</span>
+        <div id="email-fmt-badge" class="fmt-badge" style="display:none">HTML formatting preserved</div>
         <button class="btn btn-ghost btn-sm" onclick="copyEmail()">Copy</button>
       </div>
       <div class="email-panel-body">
         <div id="email-output" class="placeholder">Updated email will appear here after you click "Update for Tomorrow".</div>
       </div>
     </div>
+  </div>
+
+  <!-- Location Links -->
+  <div id="loc-links-box" style="margin-top:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text2)">📍 Location Links</span>
+      <span id="loc-links-source" style="font-size:10px;color:var(--text3);font-style:italic"></span>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="openLocMap('google')">Google Maps ↗</button>
+        <button class="btn btn-ghost btn-sm" onclick="openLocMap('apple')">Apple Maps ↗</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyLocLinks()">Copy Both</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="inp" id="loc-links-addr" type="text" placeholder="Location will auto-fill from Tab 1 — or type an address manually" style="flex:1;font-size:12px" oninput="refreshLocLinks()">
+    </div>
+    <div id="loc-links-preview" style="margin-top:8px;display:flex;flex-direction:column;gap:4px"></div>
   </div>
 </div>
 
@@ -308,16 +403,20 @@ lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--tex
     <div class="dist-panel">
       <div class="dist-panel-hdr">
         <span>Contact Book</span>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" onclick="importContacts()">↓ Import from Crew Tracker</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="importFromExcel()" title="Import names, departments and emails from an Excel or CSV file">↓ Excel</button>
+          <button class="btn btn-ghost btn-sm" onclick="importContacts()">↓ Crew Tracker</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportContacts()" title="Export contact book to JSON">↓ Export</button>
           <button class="btn btn-ghost btn-sm" onclick="addContact()">+ Add</button>
         </div>
       </div>
+      <div id="dist-excel-status" style="padding:4px 14px;font-size:11px;color:var(--text2)"></div>
       <div class="dist-panel-body" id="contact-book">
         <div class="contact-hdrs">
           <div class="contact-hdr">Name</div>
           <div class="contact-hdr">Dept</div>
           <div class="contact-hdr">Email</div>
+          <div class="contact-hdr">Phone</div>
           <div></div>
         </div>
         <div id="contact-rows"></div>
@@ -344,11 +443,89 @@ lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--tex
   </div>
 </div>
 
+<!-- ── TAB 5: DAILY SIDES ── -->
+<div class="tab-panel" id="panel-sides">
+  <div class="notice" style="margin-bottom:16px">
+    <strong>Daily Sides Generator.</strong> Load tomorrow's schedule in Tab 1 first — scenes auto-populate below. Upload the full script PDF, then click Generate. One AI call locates every target scene, extracts only those pages, slashes non-target content on split pages, and circles each scene heading. Download in script page order or shooting order.
+  </div>
+
+  <div class="sd-two-col">
+    <!-- LEFT: Scene list -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="sec-hdr" style="margin:0;border:none">Tomorrow's Scenes</div>
+        <button class="btn btn-ghost btn-sm" onclick="sdLoadFromSchedule()">⟳ From Tab 1</button>
+      </div>
+      <div class="fld">
+        <lbl>Scene numbers — comma separated (auto-filled from Tab 1)</lbl>
+        <input class="inp" id="sd-scene-input" type="text" placeholder="e.g. 56, 57, 59, 60, 61, 62, 63" oninput="sdParseInput()">
+      </div>
+      <div id="sd-scene-list" class="sd-scene-list">
+        <div style="color:var(--text3);font-size:12px;padding:6px 0">No scenes yet. Enter numbers above or load from Tab 1.</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Script upload -->
+    <div>
+      <div class="sec-hdr">Script PDF</div>
+      <div class="upload-zone" id="sd-script-zone"
+           onclick="document.getElementById('sd-script-input').click()"
+           ondragover="ev(event);this.classList.add('over')"
+           ondragleave="this.classList.remove('over')"
+           ondrop="sdDropScript(event)">
+        <h3>Drop Full Script PDF</h3>
+        <p>All pages. Locked / restricted PDFs are supported.</p>
+      </div>
+      <input type="file" id="sd-script-input" accept=".pdf" onchange="if(this.files[0])sdLoadScript(this.files[0]);this.value=''">
+      <div id="sd-script-status" style="margin-top:8px"></div>
+      <div id="sd-script-info" style="margin-top:4px;font-family:var(--mono);font-size:11px;color:var(--text3)"></div>
+    </div>
+  </div>
+
+  <!-- Generate row -->
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+    <button class="btn btn-purple" id="sd-gen-btn" onclick="sdGenerate()" disabled>✦ Generate Sides</button>
+    <div id="sd-gen-status"></div>
+  </div>
+
+  <!-- Progress -->
+  <div id="sd-progress" style="display:none">
+    <div class="sd-prog">
+      <div class="sd-prog-row"><div class="sd-dot" id="sdd-analyze"></div><span id="sdm-analyze">Sending script to Claude — locating all target scenes…</span></div>
+      <div class="sd-prog-row"><div class="sd-dot" id="sdd-extract"></div><span id="sdm-extract">Loading pdf-lib and extracting relevant pages…</span></div>
+      <div class="sd-prog-row"><div class="sd-dot" id="sdd-annotate"></div><span id="sdm-annotate">Annotating: slashing non-target content, circling scene headings…</span></div>
+      <div class="sd-prog-row"><div class="sd-dot" id="sdd-compile"></div><span id="sdm-compile">Compiling script-order and shooting-order PDFs…</span></div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="sd-results" style="display:none">
+    <div class="sec-hdr" style="margin-top:18px">Sides Ready</div>
+    <div id="sd-summary" style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:12px"></div>
+    <div class="sd-dl-row">
+      <button class="sd-dl-btn primary" onclick="sdDownload('script')">
+        ⬇ Script Order
+        <span class="sd-dl-sub" id="sd-dl-script-sub"></span>
+      </button>
+      <button class="sd-dl-btn ghost" onclick="sdDownload('shoot')">
+        ⬇ Shooting Order
+        <span class="sd-dl-sub" id="sd-dl-shoot-sub"></span>
+      </button>
+      <button class="sd-dl-btn ghost" onclick="sdDownload('raw')">
+        ⬇ Raw Pages
+        <span class="sd-dl-sub" id="sd-dl-raw-sub">no annotations</span>
+      </button>
+    </div>
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-top:18px;margin-bottom:8px">Scene Location Map</div>
+    <div id="sd-breakdown" class="sd-breakdown"></div>
+  </div>
+</div>
+
 </div><!-- /main -->
 
 <script>
 // ─── STATE ────────────────────────────────────────────────────────────────────
-var ND = JSON.parse(localStorage.getItem('ST_nextday') || '{"tomorrow":null,"callSheet":null,"contacts":[],"wxLoc":""}');
+var ND = JSON.parse(localStorage.getItem('ST_nextday') || '{"tomorrow":null,"dood":null,"contacts":[],"wxLoc":"","scriptVersion":null}');
 function save(){ try{ localStorage.setItem('ST_nextday', JSON.stringify(ND)); }catch(e){} }
 function apiKey(){ return localStorage.getItem('st-key')||''; }
 
@@ -362,7 +539,7 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function showStat(id,type,msg){
   var el=document.getElementById(id);
   if(!el) return;
-  var icons={loading:'<span class="spin">⟳</span>',ok:'✓',err:'✕'};
+  var icons={loading:'<span class="spin">⟳</span>',ok:'✓',err:'✕',warn:'⚠'};
   el.innerHTML='<span class="status '+type+'">'+icons[type]+' '+esc(msg)+'</span>';
 }
 function clearStat(id){ var el=document.getElementById(id); if(el) el.innerHTML=''; }
@@ -377,13 +554,24 @@ function tomorrowLabel(){
   var d=new Date(); d.setDate(d.getDate()+1);
   return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 }
+function tomorrowMMDD(){
+  var d=new Date(); d.setDate(d.getDate()+1);
+  return String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0');
+}
+function todayShootDayNum(){
+  try{var uh=JSON.parse(localStorage.getItem('settools_uh')||'{}');
+    var m=String(uh.shootDay||'').match(/\d+/);return m?parseInt(m[0],10):null;}catch(e){return null;}
+}
 
 // ─── TABS ─────────────────────────────────────────────────────────────────────
 function showTab(id){
   document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
   document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
   document.getElementById('panel-'+id).classList.add('active');
-  event.currentTarget.classList.add('active');
+  if(id==='email') setTimeout(syncLocFromSchedule,50);
+  document.querySelectorAll('.tab-btn').forEach(function(b){
+    if((b.getAttribute('onclick')||'').indexOf("'"+id+"'")!==-1) b.classList.add('active');
+  });
 }
 window.showTab=showTab;
 
@@ -394,7 +582,7 @@ async function apiCall(messages, sys){
   var resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-beta':'pdfs-2024-09-25','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:32000,system:sys,messages:messages})
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:8000,system:sys,messages:messages})
   });
   if(!resp.ok){ var e=await resp.json().catch(function(){return{};}); throw new Error(e.error&&e.error.message?e.error.message:'API error '+resp.status); }
   var data=await resp.json();
@@ -413,26 +601,83 @@ function parseJSON(raw, label){
 window.ev=ev;
 window.dropAdv=function(e){ e.preventDefault(); document.getElementById('adv-zone').classList.remove('over'); var f=e.dataTransfer.files[0]; if(f) procAdv(f); };
 window.dropCS=function(e){ e.preventDefault(); document.getElementById('cs-zone').classList.remove('over'); var f=e.dataTransfer.files[0]; if(f) procCS(f); };
+window.dropDood=function(e){ e.preventDefault(); document.getElementById('dood-zone').classList.remove('over'); var f=e.dataTransfer.files[0]; if(f) procDood(f); };
 
 window.procAdv=function(file){
-  if(location.protocol==='file:'){ showStat('adv-status','err','Requires local server.'); return; }
-  showStat('adv-status','loading','Extracting tomorrow\'s scenes…');
-  var r=new FileReader(); r.onload=function(e){ extractAdv(e.target.result.split(',')[1]); }; r.readAsDataURL(file);
+  if(location.protocol==='file:'){ showStat('adv-status','err','Requires local server — use the launcher.'); return; }
+  if(!apiKey()){ showStat('adv-status','err','No API key — open Crew Tracker ⚙ Settings and save your Anthropic key first.'); return; }
+  if(!file||file.type!=='application/pdf'){ showStat('adv-status','err','Please upload a PDF file.'); return; }
+  showStat('adv-status','loading','Reading "'+file.name+'"…');
+  var r=new FileReader();
+  r.onerror=function(){ showStat('adv-status','err','Could not read file — try again.'); };
+  r.onload=function(e){
+    var b64=e.target.result.split(',')[1];
+    if(!b64){ showStat('adv-status','err','File could not be converted — try again.'); return; }
+    showStat('adv-status','loading','Extracting tomorrow\'s scenes…');
+    extractAdv(b64).catch(function(err){ showStat('adv-status','err','Error: '+(err.message||err)); });
+  };
+  r.readAsDataURL(file);
 };
 
 window.procCS=function(file){
-  if(location.protocol==='file:'){ showStat('cs-status','err','Requires local server.'); return; }
-  showStat('cs-status','loading','Extracting cast calls…');
-  var r=new FileReader(); r.onload=function(e){ extractCS(e.target.result.split(',')[1]); }; r.readAsDataURL(file);
+  if(location.protocol==='file:'){ showStat('cs-status','err','Requires local server — use the launcher.'); return; }
+  if(!apiKey()){ showStat('cs-status','err','No API key — open Crew Tracker ⚙ Settings and save your Anthropic key first.'); return; }
+  if(!file||file.type!=='application/pdf'){ showStat('cs-status','err','Please upload a PDF file.'); return; }
+  showStat('cs-status','loading','Reading "'+file.name+'"…');
+  var r=new FileReader();
+  r.onerror=function(){ showStat('cs-status','err','Could not read file — try again.'); };
+  r.onload=function(e){
+    var b64=e.target.result.split(',')[1];
+    if(!b64){ showStat('cs-status','err','File could not be converted — try again.'); return; }
+    showStat('cs-status','loading','Extracting call sheet data…');
+    extractCS(b64).catch(function(err){ showStat('cs-status','err','Error: '+(err.message||err)); });
+  };
+  r.readAsDataURL(file);
 };
+
+window.procDood=function(file){
+  if(location.protocol==='file:'){ showStat('dood-status','err','Requires local server.'); return; }
+  showStat('dood-status','loading','Extracting DOOD…');
+  var r=new FileReader(); r.onload=function(e){ extractDood(e.target.result.split(',')[1]); }; r.readAsDataURL(file);
+};
+
+async function extractDood(b64){
+  var dayN=todayShootDayNum();
+  var dayCtx=dayN
+    ?'Tomorrow is Shoot Day '+(dayN+1)+'. Extract each cast member\'s work code for Shoot Day '+(dayN+1)+'.'
+    :'Tomorrow is '+tomorrowLabel()+'. Extract each cast member\'s work code for tomorrow.';
+  var SYS='Film production data extractor. Return ONLY valid JSON, no markdown.';
+  var P='This is a cast Days Out of Days (DOOD) PDF.\n'+dayCtx+'\n'+
+    'Return ONLY: {"items":[{"num":"1","name":"Jane Smith","role":"Olivia","tomorrowCode":"W"}]}\n'+
+    'num=character/cast number as a string, name=actor name, role=character name, tomorrowCode=the work code for tomorrow/the target shoot day (W=Work, H=Hold, SW=Start Work, WF=Work Finish, SWF=Start Work Finish, T=Travel, ""=not scheduled).\n'+
+    'Include ALL cast members listed. Use empty string for tomorrowCode if they have no code for that day.';
+  try{
+    var raw=await apiCall([{role:'user',content:[
+      {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},
+      {type:'text',text:P}
+    ]}],SYS);
+    var data=parseJSON(raw,'DOOD');
+    ND.dood={items:data.items||[],extractedAt:new Date().toISOString()};
+    save();
+    var working=(data.items||[]).filter(function(i){return i.tomorrowCode&&i.tomorrowCode!=='H';}).length;
+    var onHold=(data.items||[]).filter(function(i){return i.tomorrowCode==='H';}).length;
+    showStat('dood-status','ok','✓ '+(data.items||[]).length+' cast · '+working+' working tomorrow'+(onHold?' · '+onHold+' on hold':''));
+    renderSchedOut();
+  }catch(e){ showStat('dood-status','err','Error: '+e.message); }
+}
 
 async function extractAdv(b64){
   var tomorrow=tomorrowLabel();
+  var dayN=todayShootDayNum();
+  var dayCtx=dayN
+    ?'Today is Shoot Day '+dayN+'. Find the section labeled Day '+(dayN+1)+' (the next shooting day after Day '+dayN+'). Do NOT extract scenes from Day '+dayN+' or any earlier day. If the document uses a different label than "Day '+(dayN+1)+'" but it is clearly the section immediately following Day '+dayN+', use that.'
+    :'Extract ONLY the scenes scheduled for tomorrow ('+tomorrow+' or the next shooting day listed after today in this document). Do NOT extract today\'s scenes.';
   var SYS='Film production schedule parser. Return ONLY raw JSON, no markdown.';
-  var P='This is an advanced shooting schedule PDF. Extract ONLY the scenes scheduled for TOMORROW ('+tomorrow+' or the next shooting day after today).\n'+
-    'CRITICAL: Do NOT include scenes from today or any other day. Only process the section for the next shooting day.\n'+
-    'Return a JSON object: {"dayLabel":"Day X","date":"","generalCall":"","shootingCall":"","location":"","scenes":[{"type":"scene","nums":"41","set":"PARKING GARAGE","intExt":"INT","dn":"Day","pages":"2/8","castNums":["1","8"],"estMins":25,"startTime":"08:00"},{"type":"lunch","startTime":"13:00","duration":30}]}\n'+
-    'estMins: convert "0:25"→25, "2:00"→120. startTime in HH:MM 24h. Include ALL scenes for that day in shooting order.';
+  var P='This is a shooting schedule or call sheet PDF that contains an advanced schedule section.\n'+dayCtx+'\n'+
+    'CRITICAL: Extract ONLY that single next shooting day. Do not include any other days.\n'+
+    'Return a JSON object: {"dayLabel":"Day X","date":"","generalCall":"","shootingCall":"","location":"","scriptRevision":"Rev. Blue or null","scenes":[{"type":"scene","nums":"41","set":"PARKING GARAGE","intExt":"INT","dn":"Day","pages":"2/8","castNums":["1","8"],"estMins":25,"startTime":"08:00"},{"type":"lunch","startTime":"13:00","duration":30}]}\n'+
+    'estMins: convert "0:25"→25, "2:00"→120. startTime in HH:MM 24h. Include ALL scenes for that day in shooting order.\n'+
+    'For scriptRevision: look in the document header/footer for a revision label like "Rev. Blue", "Second Draft", "Production Draft", etc. Return null if not found.';
   try{
     var raw=await apiCall([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:P}]}],SYS);
     var data=parseJSON(raw,'advanced schedule');
@@ -444,28 +689,68 @@ async function extractAdv(b64){
     ND.tomorrow.location=data.location||'';
     ND.tomorrow.generalCall=data.generalCall||'';
     ND.tomorrow.shootingCall=data.shootingCall||'';
+    ND.tomorrow.advRevision=data.scriptRevision||null;
+    if(data.scriptRevision) ND.scriptVersion=data.scriptRevision;
+    // Clear stale Step 2 data — user must re-upload call sheet draft after a new schedule
+    ND.tomorrow.cast=[];
+    ND.tomorrow.castLoaded=false;
     save();
-    showStat('adv-status','ok','✓ '+data.scenes.filter(function(s){return s.type==='scene';}).length+' scenes for '+(data.dayLabel||'tomorrow'));
+    var revNote=data.scriptRevision?' ('+data.scriptRevision+')':'';
+    showStat('adv-status','ok','\u2713 '+data.scenes.filter(function(s){return s.type==='scene';}).length+' scenes for '+(data.dayLabel||'tomorrow')+revNote);
     renderSchedOut();
   }catch(e){ showStat('adv-status','err','Error: '+e.message); }
 }
 
 async function extractCS(b64){
   var SYS='Film call sheet parser. Return ONLY raw JSON, no markdown.';
-  var P='Parse this call sheet. Extract: general call time, shooting call time, location/address, and the full cast call list.\n'+
-    'Return: {"generalCall":"07:00","shootingCall":"08:00","location":"123 Main St, Los Angeles","date":"","cast":[{"num":"1","name":"Jane Smith","role":"Olivia","callTime":"07:30","onSetTime":"08:00"}]}\n'+
-    'Include all cast members listed. callTime in HH:MM 24h format.';
+  var P='Parse this call sheet completely. Extract every field an email blast would reference.\n'+
+    'Return: {\n'+
+    '  "generalCall":"07:00","shootingCall":"08:00",\n'+
+    '  "date":"Monday, January 13","dayLabel":"Day 5",\n'+
+    '  "location":"Exterior Warehouse, 123 Main St, Los Angeles, CA 90012",\n'+
+    '  "nearestHospital":"Cedars-Sinai Medical Center, 8700 Beverly Blvd — 3.2 mi",\n'+
+    '  "parking":"Gravel lot on Oak St, enter from 2nd Ave. No street parking.",\n'+
+    '  "weather":"Partly cloudy, high 72°F, low 58°F. Sunrise 6:42am.",\n'+
+    '  "meals":[{"name":"Crew Breakfast","time":"06:30"},{"name":"Lunch","time":"13:00"},{"name":"Second Meal","time":"19:00"}],\n'+
+    '  "crewCalls":[{"dept":"Camera","callTime":"07:00"},{"dept":"G&E","callTime":"07:00"},{"dept":"Art","callTime":"06:00"}],\n'+
+    '  "advanceSchedule":"Day 6 — Tuesday Jan 14 — INT Office — General Call 07:30",\n'+
+    '  "notes":"No open-toed shoes on set. COVID testing required before base camp. Basecamp at Main St entrance.",\n'+
+    '  "scriptRevision":"Rev. Blue or null",\n'+
+    '  "cast":[{"num":"1","name":"Jane Smith","role":"Olivia","callTime":"07:30","makeupCall":"06:30","hairCall":"06:45","onSetTime":"08:00"}]\n'+
+    '}\n'+
+    'Rules: all times in HH:MM 24h. nearestHospital: include name + address + distance if listed. parking: full text of parking instructions. notes: all special instructions, COVID protocols, safety notices, basecamp info. advanceSchedule: the advance/next-day schedule note if listed. crewCalls: department call times. meals: all listed meal/catering times. weather: full weather note if listed. Include null for any field not found.'+
+    '\nFor scriptRevision: look in header/footer for revision label like "Rev. Blue", "Second Draft", etc. Return null if not found.';
   try{
     var raw=await apiCall([{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:P}]}],SYS);
     var data=parseJSON(raw,'call sheet');
     if(!ND.tomorrow) ND.tomorrow={};
     ND.tomorrow.cast=data.cast||[];
+    ND.tomorrow.castLoaded=true;
     ND.tomorrow.generalCall=data.generalCall||ND.tomorrow.generalCall||'';
     ND.tomorrow.shootingCall=data.shootingCall||ND.tomorrow.shootingCall||'';
     ND.tomorrow.location=data.location||ND.tomorrow.location||'';
     ND.tomorrow.date=data.date||ND.tomorrow.date||'';
+    ND.tomorrow.dayLabel=data.dayLabel||ND.tomorrow.dayLabel||'';
+    ND.tomorrow.nearestHospital=data.nearestHospital||null;
+    ND.tomorrow.parking=data.parking||null;
+    ND.tomorrow.weather=data.weather||null;
+    ND.tomorrow.meals=data.meals||null;
+    ND.tomorrow.crewCalls=data.crewCalls||null;
+    ND.tomorrow.advanceSchedule=data.advanceSchedule||null;
+    ND.tomorrow.notes=data.notes||null;
+    ND.tomorrow.csRevision=data.scriptRevision||null;
+    if(data.scriptRevision) ND.scriptVersion=data.scriptRevision;
     save();
-    showStat('cs-status','ok','✓ '+(data.cast||[]).length+' cast calls extracted');
+    var revNote=data.scriptRevision?' ('+data.scriptRevision+')':'';
+    var csMsg='\u2713 '+(data.cast||[]).length+' cast calls extracted'+revNote;
+    // Cross-check revisions
+    var advRev=ND.tomorrow.advRevision;
+    var csRev=data.scriptRevision;
+    if(advRev&&csRev&&advRev.toLowerCase()!==csRev.toLowerCase()){
+      showStat('cs-status','warn','\u26a0 Revision mismatch: Step 1='+advRev+', Step 2='+csRev+'. Check you uploaded matching documents.');
+    } else {
+      showStat('cs-status','ok',csMsg);
+    }
     renderSchedOut();
   }catch(e){ showStat('cs-status','err','Error: '+e.message); }
 }
@@ -521,13 +806,132 @@ function renderSchedOut(){
     if(t.shootingCall) items.push(['Shooting Call',fmt12(t.shootingCall)]);
     pb.innerHTML=items.map(function(i){ return '<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:2px">'+esc(i[0])+'</div><div style="font-size:15px;font-weight:600;font-family:var(--mono);color:var(--accent)">'+esc(i[1])+'</div></div>'; }).join('');
   }
+  renderVerification(t);
 }
 
 window.clearTomorrow=function(){
-  if(!confirm('Clear tomorrow\'s schedule data?')) return;
-  ND.tomorrow=null; save(); document.getElementById('sched-out').style.display='none';
-  clearStat('adv-status'); clearStat('cs-status');
+  if(!confirm('Clear all Step 1 & Step 2 data (schedule, DOOD, call sheet)?')) return;
+  ND.tomorrow=null; ND.dood=null; save();
+  document.getElementById('sched-out').style.display='none';
+  clearStat('adv-status'); clearStat('cs-status'); clearStat('dood-status');
+  var el=document.getElementById('sched-verify'); if(el) el.innerHTML='';
 };
+
+function renderVerification(t){
+  var el=document.getElementById('sched-verify'); if(!el) return;
+  if(!t||!t.scenes||!t.scenes.length){el.innerHTML='';return;}
+
+  // Build cast num→name from call sheet
+  var castByNum={};
+  if(t.cast) t.cast.forEach(function(c){ if(c.num) castByNum[String(c.num)]={name:c.name||'',role:c.role||'',num:c.num}; });
+
+  // Collect all cast nums used in tomorrow's scenes
+  var numScenes={}; // {castNum: [sceneLabel, ...]}
+  t.scenes.filter(function(s){return s.type==='scene';}).forEach(function(s){
+    (s.castNums||[]).forEach(function(n){
+      var k=String(n).trim(); if(!k) return;
+      if(!numScenes[k]) numScenes[k]=[];
+      numScenes[k].push(s.nums||'?');
+    });
+  });
+  var sceneCastNums=Object.keys(numScenes).sort(function(a,b){return(parseInt(a,10)||0)-(parseInt(b,10)||0)||(a<b?-1:a>b?1:0);});
+
+  // Only compare schedule vs call sheet if call sheet was actually uploaded as Step 2
+  var notOnCS=t.castLoaded?sceneCastNums.filter(function(n){return!castByNum[n];}):[];
+  var notInScenes=t.castLoaded?t.cast.filter(function(c){return c.num&&!numScenes[String(c.num)];}):[];
+
+  // DOOD cross-reference — use ND.dood (uploaded directly in Step 1)
+  var doodFlags=[]; var doodMissing=[];
+  var hasDood=!!(ND.dood&&ND.dood.items&&ND.dood.items.length);
+  if(hasDood){
+    // Build DOOD maps: by num and by name
+    var doodByNum={}; var doodByName={};
+    ND.dood.items.forEach(function(item){
+      if(item.num) doodByNum[String(item.num)]={code:item.tomorrowCode||'',name:item.name||'',role:item.role||''};
+      if(item.name){
+        var k=item.name.toLowerCase().trim();
+        if(!doodByName[k]) doodByName[k]={code:item.tomorrowCode||'',num:item.num||'',name:item.name,role:item.role||''};
+      }
+    });
+
+    // Check each cast number that appears in tomorrow's scenes
+    sceneCastNums.forEach(function(castNum){
+      var doodEntry=doodByNum[castNum];
+      // Also try name match if call sheet has name for this num
+      if(!doodEntry&&castByNum[castNum]){
+        var k=(castByNum[castNum].name||'').toLowerCase().trim();
+        if(k){
+          doodEntry=doodByName[k];
+          if(!doodEntry){var keys=Object.keys(doodByName);for(var i=0;i<keys.length;i++){if(keys[i].indexOf(k)!==-1||k.indexOf(keys[i])!==-1){doodEntry=doodByName[keys[i]];break;}}}
+        }
+      }
+      var displayName=castByNum[castNum]?castByNum[castNum].name:'Cast #'+castNum;
+      if(doodEntry){
+        var code=doodEntry.code;
+        if(code==='H') doodFlags.push({name:displayName,num:castNum,issue:'HOLD (H) in DOOD — should they be on hold?'});
+        else if(!code) doodFlags.push({name:displayName,num:castNum,issue:'No DOOD code for tomorrow'});
+        // W, SW, WF, SWF, T = working/travel — no flag
+      } else {
+        doodMissing.push({name:displayName,num:castNum});
+      }
+    });
+  }
+
+  var hasIssues=notOnCS.length||notInScenes.length||doodFlags.length;
+  var html='<div class="sec-hdr" style="margin-top:24px">Cross-Reference</div>';
+
+  if(!t.cast||!t.cast.length){
+    html+='<div style="font-size:12px;color:var(--text3);padding:8px 0">Load tomorrow\'s call sheet in the right upload zone above to enable cast verification.</div>';
+  } else if(!hasIssues){
+    html+='<div style="color:var(--success);font-size:12px;padding:8px 0">✓ All '+sceneCastNums.length+' cast numbers in tomorrow\'s scenes match the call sheet.'+(hasDood?' No DOOD conflicts detected.':' (Upload the Cast DOOD above to also verify work codes.)')+'</div>';
+  } else {
+    if(notOnCS.length){
+      html+='<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--warn);margin-bottom:5px">⚠ In Schedule But Not on Call Sheet ('+notOnCS.length+')</div>';
+      notOnCS.forEach(function(num){
+        html+='<div style="display:flex;align-items:center;gap:10px;padding:5px 10px;background:rgba(240,160,64,.08);border:1px solid rgba(240,160,64,.2);border-radius:4px;margin-bottom:4px;font-size:12px">'
+          +'<span style="font-family:var(--mono);color:var(--warn);min-width:30px">#'+esc(num)+'</span>'
+          +'<span style="color:var(--text2)">Scenes: '+esc(numScenes[num].join(', '))+'</span>'
+          +'<span style="color:var(--text3);margin-left:auto;font-size:10px;font-family:var(--mono)">not on call sheet</span>'
+          +'</div>';
+      });
+      html+='</div>';
+    }
+    if(notInScenes.length){
+      html+='<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:5px">On Call Sheet — No Scene Assignment ('+notInScenes.length+')</div>';
+      notInScenes.forEach(function(c){
+        html+='<div style="display:flex;align-items:center;gap:10px;padding:5px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px">'
+          +'<span style="font-family:var(--mono);color:var(--text3);min-width:30px">#'+(c.num||'?')+'</span>'
+          +'<span style="color:var(--text2)">'+esc(c.name||'')+(c.role?' · <em>'+esc(c.role)+'</em>':'')+'</span>'
+          +'</div>';
+      });
+      html+='</div>';
+    }
+    if(doodFlags.length){
+      html+='<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--danger);margin-bottom:5px">⚠ DOOD Conflicts ('+doodFlags.length+')</div>';
+      doodFlags.forEach(function(f){
+        html+='<div style="display:flex;align-items:center;gap:10px;padding:5px 10px;background:rgba(224,90,90,.08);border:1px solid rgba(224,90,90,.2);border-radius:4px;margin-bottom:4px;font-size:12px">'
+          +'<span style="font-family:var(--mono);color:var(--text3);min-width:30px">#'+esc(String(f.num||'?'))+'</span>'
+          +'<span style="color:var(--text)">'+esc(f.name)+'</span>'
+          +'<span style="font-size:10px;color:var(--text3)">'+esc(f.dept)+'</span>'
+          +'<span style="color:var(--danger);margin-left:auto;font-size:11px;font-family:var(--mono)">'+esc(f.issue)+'</span>'
+          +'</div>';
+      });
+      html+='</div>';
+    }
+    if(doodMissing.length&&hasDood){
+      html+='<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:5px">In Scenes — Not Found in DOOD ('+doodMissing.length+')</div>';
+      doodMissing.forEach(function(m){
+        html+='<div style="display:flex;align-items:center;gap:10px;padding:5px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px">'
+          +'<span style="font-family:var(--mono);color:var(--text3);min-width:30px">#'+esc(m.num||'?')+'</span>'
+          +'<span style="color:var(--text2)">'+esc(m.name||'')+'</span>'
+          +'<span style="color:var(--text3);margin-left:auto;font-size:10px;font-family:var(--mono)">not in DOOD</span>'
+          +'</div>';
+      });
+      html+='</div>';
+    }
+  }
+  el.innerHTML=html;
+}
 
 // ─── TAB 2: WEATHER ───────────────────────────────────────────────────────────
 window.fetchWeather=async function(){
@@ -598,8 +1002,51 @@ function renderWeather(fx, geo){
 }
 
 // ─── TAB 3: EMAIL ─────────────────────────────────────────────────────────────
+
+// Tracks HTML captured on paste; null = plain text was pasted
+var emailRawHtml = null;
+
+(function(){
+  var inp = document.getElementById('email-input');
+  if(!inp) return;
+  function checkPlaceholder(){
+    var empty = inp.innerText.trim()==='' && inp.innerHTML.replace(/<br\s*\/?>/gi,'').trim()==='';
+    inp.classList.toggle('has-placeholder', empty);
+  }
+  inp.addEventListener('paste', function(e){
+    e.preventDefault();
+    var html = e.clipboardData.getData('text/html');
+    var text = e.clipboardData.getData('text/plain');
+    if(html && html.trim()){
+      var m = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      var body = m ? m[1] : html;
+      body = body.replace(/<script[\s\S]*?<\/script>/gi,'')
+                 .replace(/\s+on\w+="[^"]*"/gi,'')
+                 .replace(/\s+on\w+='[^']*'/gi,'');
+      inp.innerHTML = body;
+      emailRawHtml = body;
+    } else {
+      inp.innerText = text;
+      emailRawHtml = null;
+    }
+    checkPlaceholder();
+  });
+  inp.addEventListener('input', function(){
+    if(inp.innerText.trim()==='') emailRawHtml = null;
+    checkPlaceholder();
+  });
+  checkPlaceholder();
+})();
+
+function sanitizeHtml(html){
+  return html.replace(/<script[\s\S]*?<\/script>/gi,'')
+             .replace(/\s+on\w+="[^"]*"/gi,'')
+             .replace(/\s+on\w+='[^']*'/gi,'');
+}
+
 window.updateEmail=async function(){
-  var oldEmail=document.getElementById('email-input').value.trim();
+  var inp = document.getElementById('email-input');
+  var oldEmail = emailRawHtml || (inp ? inp.innerText.trim() : '');
   if(!oldEmail){ showStat('email-status','err','Paste your previous email first.'); return; }
   showStat('email-status','loading','Rewriting for tomorrow…');
   // Build context from tomorrow's data
@@ -612,6 +1059,17 @@ window.updateEmail=async function(){
     if(t.location) lines.push('Location: '+t.location);
     if(t.generalCall) lines.push('General Call: '+fmt12(t.generalCall));
     if(t.shootingCall) lines.push('Shooting Call: '+fmt12(t.shootingCall));
+    if(t.nearestHospital) lines.push('Nearest Hospital: '+t.nearestHospital);
+    if(t.parking) lines.push('Parking: '+t.parking);
+    if(t.weather) lines.push('Weather: '+t.weather);
+    if(t.meals&&t.meals.length){
+      lines.push('\nMeals:');
+      t.meals.forEach(function(m){ lines.push('  '+m.name+': '+fmt12(m.time)); });
+    }
+    if(t.crewCalls&&t.crewCalls.length){
+      lines.push('\nCrew/Department Calls:');
+      t.crewCalls.forEach(function(c){ lines.push('  '+c.dept+': '+fmt12(c.callTime)); });
+    }
     if(t.scenes&&t.scenes.length){
       lines.push('\nScene Order:');
       t.scenes.forEach(function(sc){
@@ -621,35 +1079,134 @@ window.updateEmail=async function(){
     }
     if(t.cast&&t.cast.length){
       lines.push('\nCast Calls:');
-      t.cast.forEach(function(c){ lines.push('  '+c.name+(c.role?' ('+c.role+')':'')+' — Call: '+fmt12(c.callTime)+(c.onSetTime?' | On Set: '+fmt12(c.onSetTime):'')); });
+      t.cast.forEach(function(c){
+        var entry='  '+c.name+(c.role?' ('+c.role+')':'');
+        if(c.makeupCall) entry+=' — Makeup: '+fmt12(c.makeupCall);
+        if(c.hairCall) entry+=' | Hair: '+fmt12(c.hairCall);
+        entry+=' | Call: '+fmt12(c.callTime);
+        if(c.onSetTime) entry+=' | On Set: '+fmt12(c.onSetTime);
+        lines.push(entry);
+      });
     }
+    if(t.advanceSchedule) lines.push('\nAdvance Schedule: '+t.advanceSchedule);
+    if(t.notes) lines.push('\nSpecial Notes: '+t.notes);
     ctx=lines.join('\n');
   } else {
     ctx='[No schedule data loaded in Tab 1. Using only context from previous email.]';
   }
   try{
-    var SYS='You are a film production coordinator. Rewrite email blasts clearly and professionally. Preserve the structure and tone of the original. Output only the email text — no preamble, no explanation.';
-    var P='Update this email blast for tomorrow\'s shooting day using the call sheet information provided. Change all dates, day numbers, call times, scene numbers, set locations, and cast names to match tomorrow. Keep the same format, greeting, and sign-off.\n\n'+ctx+'\n\n=== PREVIOUS EMAIL ===\n'+oldEmail;
+    var isHtml = !!emailRawHtml;
+    var SYS, P;
+    if(isHtml){
+      SYS='You are a film production coordinator updating an HTML-formatted email blast. You MUST return the complete updated email as valid HTML. Rules: (1) Preserve EVERY HTML tag, inline style, class, and attribute exactly as-is. (2) Preserve ALL emoji characters without modification. (3) Only change factual production details: dates, day numbers, call times, scene numbers, set/location names, cast names. (4) Do not reorder sections. (5) Output only the raw HTML — no markdown, no code fences, no explanation.';
+      P='Update this HTML email blast for tomorrow\'s shooting day.\n\n'+ctx+'\n\n=== PREVIOUS EMAIL (HTML) ===\n'+oldEmail;
+    } else {
+      SYS='You are a film production coordinator. Rewrite email blasts clearly and professionally. CRITICAL: preserve ALL emojis, special characters, symbols, dash lines, ALL-CAPS headers, and formatting conventions exactly. Only change factual details. Output only the email text — no preamble, no explanation.';
+      P='Update this email blast for tomorrow\'s shooting day using the call sheet information provided. Change all dates, day numbers, call times, scene numbers, set locations, and cast names to match tomorrow. Keep the same format, greeting, sign-off, ALL emojis, and ALL formatting symbols.\n\n'+ctx+'\n\n=== PREVIOUS EMAIL ===\n'+oldEmail;
+    }
     var result=await apiCall([{role:'user',content:[{type:'text',text:P}]}],SYS);
     var out=document.getElementById('email-output');
+    var badge=document.getElementById('email-fmt-badge');
     out.classList.remove('placeholder');
-    out.textContent=result;
+    if(isHtml){
+      out.innerHTML=sanitizeHtml(result.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim());
+      out.style.whiteSpace='';
+      if(badge) badge.style.display='';
+    } else {
+      out.textContent=result;
+      out.style.whiteSpace='pre-wrap';
+      if(badge) badge.style.display='none';
+    }
     clearStat('email-status');
   }catch(e){ showStat('email-status','err','Error: '+e.message); }
 };
 
 window.copyEmail=function(){
-  var txt=document.getElementById('email-output').textContent;
-  if(!txt||document.getElementById('email-output').classList.contains('placeholder')) return;
-  navigator.clipboard.writeText(txt).then(function(){ showStat('email-status','ok','Copied to clipboard'); setTimeout(function(){ clearStat('email-status'); },2000); });
+  var out=document.getElementById('email-output');
+  if(!out||out.classList.contains('placeholder')) return;
+  var html=out.innerHTML;
+  var text=out.innerText||out.textContent;
+  // Try rich-text copy first (preserves formatting in email clients)
+  if(window.ClipboardItem && html && !out.style.whiteSpace){
+    try{
+      navigator.clipboard.write([new ClipboardItem({
+        'text/html': new Blob([html],{type:'text/html'}),
+        'text/plain': new Blob([text],{type:'text/plain'})
+      })]).then(function(){
+        showStat('email-status','ok','Copied with formatting');
+        setTimeout(function(){ clearStat('email-status'); },2500);
+      });
+      return;
+    }catch(e){}
+  }
+  // Fallback: plain text
+  navigator.clipboard.writeText(text).then(function(){
+    showStat('email-status','ok','Copied to clipboard');
+    setTimeout(function(){ clearStat('email-status'); },2000);
+  });
 };
 
 window.clearEmail=function(){
-  document.getElementById('email-input').value='';
+  var inp=document.getElementById('email-input');
+  if(inp){inp.innerHTML='';inp.classList.add('has-placeholder');}
+  emailRawHtml=null;
   var out=document.getElementById('email-output');
   out.textContent='Updated email will appear here after you click "Update for Tomorrow".';
+  out.style.whiteSpace='pre-wrap';
   out.classList.add('placeholder');
+  var badge=document.getElementById('email-fmt-badge');
+  if(badge) badge.style.display='none';
   clearStat('email-status');
+};
+
+// ─── LOCATION LINKS ──────────────────────────────────────────────────────────
+function refreshLocLinks(){
+  var addr=document.getElementById('loc-links-addr');
+  var preview=document.getElementById('loc-links-preview');
+  if(!addr||!preview) return;
+  var q=(addr.value||'').trim();
+  if(!q){ preview.innerHTML=''; return; }
+  var enc=encodeURIComponent(q);
+  var gUrl='https://maps.google.com/?q='+enc;
+  var aUrl='https://maps.apple.com/?q='+enc;
+  preview.innerHTML=
+    '<div style="font-size:11px;color:var(--text3);font-family:var(--mono);word-break:break-all"><span style="color:var(--text2)">Google: </span>'+gUrl+'</div>'+
+    '<div style="font-size:11px;color:var(--text3);font-family:var(--mono);word-break:break-all;margin-top:3px"><span style="color:var(--text2)">Apple: </span>'+aUrl+'</div>';
+}
+
+function syncLocFromSchedule(){
+  var addr=document.getElementById('loc-links-addr');
+  var src=document.getElementById('loc-links-source');
+  if(!addr) return;
+  var loc=(ND.tomorrow&&ND.tomorrow.location)||'';
+  if(loc&&!addr.value){
+    addr.value=loc;
+    if(src) src.textContent='auto-filled from call sheet';
+    refreshLocLinks();
+  }
+}
+
+window.openLocMap=function(which){
+  var addr=document.getElementById('loc-links-addr');
+  var q=(addr&&addr.value||'').trim();
+  if(!q){ alert('Enter a location first.'); return; }
+  var enc=encodeURIComponent(q);
+  var url=which==='apple'?'https://maps.apple.com/?q='+enc:'https://maps.google.com/?q='+enc;
+  window.open(url,'_blank');
+};
+
+window.copyLocLinks=function(){
+  var addr=document.getElementById('loc-links-addr');
+  var q=(addr&&addr.value||'').trim();
+  if(!q){ alert('Enter a location first.'); return; }
+  var enc=encodeURIComponent(q);
+  var text='Google Maps: https://maps.google.com/?q='+enc+'\nApple Maps: https://maps.apple.com/?q='+enc;
+  navigator.clipboard.writeText(text).then(function(){
+    var src=document.getElementById('loc-links-source');
+    var prev=src?src.textContent:'';
+    if(src) src.textContent='Links copied!';
+    setTimeout(function(){ if(src) src.textContent=prev; },2000);
+  });
 };
 
 // ─── TAB 4: DISTRIBUTION ─────────────────────────────────────────────────────
@@ -663,6 +1220,7 @@ function renderContacts(){
     row.innerHTML='<input type="text" value="'+esc(c.name||'')+'" placeholder="Name" data-i="'+i+'" data-f="name" oninput="updContact(this)">'+
       '<input type="text" value="'+esc(c.dept||'')+'" placeholder="Dept" data-i="'+i+'" data-f="dept" oninput="updContact(this)">'+
       '<input type="text" value="'+esc(c.email||'')+'" placeholder="email@example.com" data-i="'+i+'" data-f="email" oninput="updContact(this)">'+
+      '<input type="text" value="'+esc(c.phone||'')+'" placeholder="Phone" data-i="'+i+'" data-f="phone" oninput="updContact(this)">'+
       '<button class="rm-btn" onclick="rmContact('+i+')">✕</button>';
     el.appendChild(row);
   });
@@ -671,7 +1229,7 @@ function renderContacts(){
 window.updContact=function(el){ var i=+el.dataset.i; if(ND.contacts[i]) ND.contacts[i][el.dataset.f]=el.value; save(); };
 window.rmContact=function(i){ ND.contacts.splice(i,1); save(); renderContacts(); buildManifest(); };
 window.addContact=function(){
-  ND.contacts.push({name:'',dept:'',email:''});
+  ND.contacts.push({name:'',dept:'',email:'',phone:''});
   save(); renderContacts();
   var rows=document.querySelectorAll('.contact-row');
   if(rows.length) rows[rows.length-1].querySelector('input').focus();
@@ -738,20 +1296,7 @@ window.buildManifest=function(){
 
 window.copyEmails=function(){
   var emails=[];
-  ND.contacts.forEach(function(c){
-    if(c.email&&c.email.includes('@')) emails.push(c.email);
-  });
-  if(!emails.length){ alert('No email addresses in contact book yet.'); return; }
-  navigator.clipboard.writeText(emails.join(', ')).then(function(){
-    showStat('manifest-summary','ok',emails.length+' emails copied');
-    setTimeout(function(){ buildManifest(); },2500);
-  });
-};
-// Override for manifest-summary (not a status el)
-window.copyEmails=function(){
-  var emails=[];
   var mb=document.getElementById('manifest-body');
-  // Use only contacts with emails that are in the manifest
   var seen=new Set();
   mb.querySelectorAll('.manifest-email:not(.missing)').forEach(function(el){
     var email=el.textContent.trim();
@@ -760,10 +1305,474 @@ window.copyEmails=function(){
   if(!emails.length){ alert('No email addresses in manifest. Add emails to the contact book first.'); return; }
   navigator.clipboard.writeText(emails.join(', ')).then(function(){
     var s=document.getElementById('manifest-summary');
-    s.textContent='✓ '+emails.length+' emails copied to clipboard';
-    s.style.color='var(--success)';
+    s.textContent='\u2713 '+emails.length+' emails copied to clipboard';
+    s.style.color='#34d399';
     setTimeout(function(){ buildManifest(); s.style.color=''; },2500);
   });
+};
+
+// Load SheetJS on demand
+function loadXLSX(){
+  if(typeof XLSX!=='undefined') return Promise.resolve();
+  return new Promise(function(res,rej){
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload=res;s.onerror=function(){rej(new Error('Failed to load XLSX library from CDN. Check internet connection.'));};
+    document.head.appendChild(s);
+  });
+}
+
+// ── Column detection helper for bible/Excel import ──────────────────────────
+function detectColumns(hdrs){
+  // Returns {name, firstName, lastName, dept, role, email, phone} as col indices or -1
+  var cols={name:-1,firstName:-1,lastName:-1,dept:-1,role:-1,email:-1,phone:-1};
+  var lo=hdrs.map(function(h){return String(h).toLowerCase().replace(/[^a-z0-9]/g,' ').trim();});
+  lo.forEach(function(h,i){
+    if(cols.name<0&&/^(name|full name|full.name|display name|contact|person|member)$/.test(h)) cols.name=i;
+    if(cols.firstName<0&&/^(first|first name|given|given name|fname|f name)$/.test(h)) cols.firstName=i;
+    if(cols.lastName<0&&/^(last|last name|surname|family|family name|lname|l name)$/.test(h)) cols.lastName=i;
+    if(cols.dept<0&&/(dept|department|dep |area|section|division)/.test(h)&&!/head|chair/.test(h)) cols.dept=i;
+    if(cols.role<0&&/^(role|title|position|job|job title|occupation|function)$/.test(h)) cols.role=i;
+    if(cols.email<0&&/email/.test(h)) cols.email=i;
+    if(cols.phone<0&&/(phone|cell|mobile|tel |number|contact num)/.test(h)) cols.phone=i;
+  });
+  // Wider fallbacks
+  if(cols.name<0) lo.forEach(function(h,i){if(cols.name<0&&h.includes('name')&&!h.includes('email')&&!h.includes('last')&&!h.includes('first')) cols.name=i;});
+  if(cols.email<0) lo.forEach(function(h,i){if(cols.email<0&&h.includes('mail')) cols.email=i;});
+  return cols;
+}
+
+function importSheetRows(rows,sheetName){
+  if(!rows||rows.length<2) return null;
+  // Find header row: scan first 5 rows for one that contains recognisable column labels
+  var hdrIdx=0;
+  for(var r=0;r<Math.min(5,rows.length);r++){
+    var sample=rows[r].map(function(h){return String(h||'').toLowerCase();}).join(' ');
+    if(/(name|email|dept|department|phone|cell|mobile|role|position)/.test(sample)){hdrIdx=r;break;}
+  }
+  var hdrs=rows[hdrIdx].map(function(h){return String(h||'');});
+  var cols=detectColumns(hdrs);
+  // If no name and no first+last combo, skip this sheet
+  if(cols.name<0&&(cols.firstName<0||cols.lastName<0)) return null;
+  var added=0,updated=0,skipped=0;
+  for(var i=hdrIdx+1;i<rows.length;i++){
+    var row=rows[i];
+    var name='';
+    if(cols.name>=0) name=String(row[cols.name]||'').trim();
+    else if(cols.firstName>=0||cols.lastName>=0){
+      var fn=cols.firstName>=0?String(row[cols.firstName]||'').trim():'';
+      var ln=cols.lastName>=0?String(row[cols.lastName]||'').trim():'';
+      name=(fn+' '+ln).trim();
+    }
+    if(!name||/^[-—_\s]+$/.test(name)){skipped++;continue;}
+    // Use role as dept if dept col missing, or combine
+    var dept='';
+    if(cols.dept>=0) dept=String(row[cols.dept]||'').trim();
+    if(!dept&&cols.role>=0) dept=String(row[cols.role]||'').trim();
+    var email=cols.email>=0?String(row[cols.email]||'').trim():'';
+    var phone=cols.phone>=0?String(row[cols.phone]||'').trim():'';
+    // Validate email: must contain @
+    if(email&&!email.includes('@')) email='';
+    var existing=ND.contacts.find(function(c){return c.name&&c.name.toLowerCase()===name.toLowerCase();});
+    if(existing){
+      var changed=false;
+      if(!existing.email&&email){existing.email=email;changed=true;}
+      if(!existing.dept&&dept){existing.dept=dept;changed=true;}
+      if(!existing.phone&&phone){existing.phone=phone;changed=true;}
+      if(changed)updated++; else skipped++;
+    } else {
+      ND.contacts.push({name:name,dept:dept,email:email,phone:phone});
+      added++;
+    }
+  }
+  return {added:added,updated:updated,skipped:skipped,sheet:sheetName};
+}
+
+window.importFromExcel=function(){
+  var inp=document.createElement('input');inp.type='file';inp.accept='.xlsx,.xls,.csv';
+  inp.onchange=function(){
+    if(!inp.files[0]) return;
+    var file=inp.files[0];
+    showStat('dist-excel-status','loading','Reading '+file.name+'...');
+    var reader=new FileReader();
+    reader.onload=function(e){
+      loadXLSX().then(function(){
+        try{
+          var data=new Uint8Array(e.target.result);
+          var wb=XLSX.read(data,{type:'array'});
+          var sheetResults=[];
+          var totalAdded=0,totalUpdated=0;
+          wb.SheetNames.forEach(function(name){
+            // Skip sheets that look like metadata/lookup tables
+            if(/^(lookup|lists|config|settings|notes|cover|readme)/i.test(name)) return;
+            var ws=wb.Sheets[name];
+            var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',blankrows:false});
+            var res=importSheetRows(rows,name);
+            if(res&&(res.added||res.updated)){
+              sheetResults.push(res);
+              totalAdded+=res.added;totalUpdated+=res.updated;
+            }
+          });
+          if(!sheetResults.length) throw new Error('No recognisable people data found. Ensure headers include "Name", "Email", "Department" etc. in the first few rows of each sheet.');
+          save();renderContacts();buildManifest();
+          var summary=totalAdded+' added, '+totalUpdated+' updated';
+          if(sheetResults.length>1) summary+=' across '+sheetResults.length+' sheets ('+sheetResults.map(function(r){return r.sheet+': '+r.added;}).join(', ')+')';
+          showStat('dist-excel-status','ok',summary);
+        }catch(ex){showStat('dist-excel-status','err','Error: '+ex.message);}
+      }).catch(function(ex){showStat('dist-excel-status','err',ex.message);});
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  inp.click();
+};
+
+window.exportContacts=function(){
+  if(!ND.contacts||!ND.contacts.length){alert('No contacts to export.');return;}
+  var blob=new Blob([JSON.stringify(ND.contacts,null,2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;
+  a.download='settools-contacts-'+new Date().toISOString().substring(0,10)+'.json';
+  a.click();setTimeout(function(){URL.revokeObjectURL(url);},3000);
+};
+
+// ─── TAB 5: DAILY SIDES ──────────────────────────────────────────────────────
+var SD = {
+  scenes: [],          // [{num, set, intExt, dn, shootOrder}] in shooting order
+  scriptB64: null,     // base64 of script PDF
+  scriptBuf: null,     // ArrayBuffer of script PDF (for pdf-lib)
+  scriptName: '',
+  pageMap: null,       // Claude's analysis result
+  scriptBytes: null,   // annotated script-order PDF bytes
+  shootBytes: null,    // annotated shooting-order PDF bytes
+  rawBytes: null,      // unannotated pages PDF bytes
+};
+
+window.sdLoadFromSchedule = function(){
+  if(!ND.tomorrow||!ND.tomorrow.scenes||!ND.tomorrow.scenes.length){
+    alert('No schedule loaded in Tab 1 yet.');return;
+  }
+  var nums=ND.tomorrow.scenes
+    .filter(function(s){return s.type==='scene';})
+    .map(function(s){return (s.nums||'').trim();})
+    .filter(Boolean);
+  document.getElementById('sd-scene-input').value=nums.join(', ');
+  sdParseInput();
+};
+
+window.sdParseInput = function(){
+  var val=document.getElementById('sd-scene-input').value;
+  var nums=val.split(/[,\s]+/).map(function(n){return n.trim();}).filter(Boolean);
+  var schedMap={};
+  if(ND.tomorrow&&ND.tomorrow.scenes){
+    ND.tomorrow.scenes.filter(function(s){return s.type==='scene';}).forEach(function(s,i){
+      schedMap[s.nums]={set:s.set,intExt:s.intExt,dn:s.dn,shootOrder:i};
+    });
+  }
+  SD.scenes=nums.map(function(num,i){
+    var sc=schedMap[num]||{};
+    return{num:num,set:sc.set||'',intExt:sc.intExt||'',dn:sc.dn||'',shootOrder:sc.shootOrder!=null?sc.shootOrder:i};
+  });
+  sdRenderSceneList();
+  sdUpdateBtn();
+};
+
+function sdRenderSceneList(){
+  var el=document.getElementById('sd-scene-list');
+  if(!SD.scenes.length){
+    el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:6px 0">No scenes yet. Enter numbers above or load from Tab 1.</div>';
+    return;
+  }
+  el.innerHTML=SD.scenes.map(function(sc){
+    return '<div class="sd-scene-item">'+
+      '<div class="sd-scene-num">'+esc(sc.num)+'</div>'+
+      '<div class="sd-scene-info">'+(sc.intExt?esc(sc.intExt)+'. ':'')+esc(sc.set||'—')+(sc.dn?' · '+esc(sc.dn):'')+'</div>'+
+      '<div class="sd-scene-ord">#'+(sc.shootOrder+1)+'</div>'+
+      '</div>';
+  }).join('');
+}
+
+window.sdLoadScript = function(file){
+  showStat('sd-script-status','loading','Reading '+file.name+'…');
+  SD.scriptName=file.name;
+  // Read as base64 for API
+  var r1=new FileReader();
+  r1.onload=function(e){SD.scriptB64=e.target.result.split(',')[1];};
+  r1.readAsDataURL(file);
+  // Read as ArrayBuffer for pdf-lib
+  var r2=new FileReader();
+  r2.onload=function(e){
+    SD.scriptBuf=e.target.result;
+    showStat('sd-script-status','ok',file.name);
+    document.getElementById('sd-script-info').textContent=Math.round(file.size/1024)+' KB';
+    sdUpdateBtn();
+  };
+  r2.readAsArrayBuffer(file);
+};
+
+window.sdDropScript=function(e){
+  e.preventDefault();document.getElementById('sd-script-zone').classList.remove('over');
+  var f=e.dataTransfer.files[0];if(f)sdLoadScript(f);
+};
+
+function sdUpdateBtn(){
+  document.getElementById('sd-gen-btn').disabled=!(SD.scenes.length&&SD.scriptB64&&SD.scriptBuf);
+}
+
+function sdProg(step,state,msg){
+  var dot=document.getElementById('sdd-'+step);
+  var span=document.getElementById('sdm-'+step);
+  if(dot){dot.className='sd-dot '+state;}
+  if(span&&msg)span.textContent=msg;
+}
+
+// Find a scene number in pdf.js text items. Returns y (PDF pts from bottom) or null.
+// Scene numbers in screenplay format sit at left margin (x < 120pt).
+function findSceneNumInText(items,sceneNum){
+  var numStr=String(sceneNum).trim().replace(/\.$/,'');
+  for(var i=0;i<items.length;i++){
+    var it=items[i];
+    var str=(it.str||'').trim().replace(/\.$/,'');
+    if(str===numStr&&it.transform[4]<120) return it.transform[5];
+  }
+  // Fallback: starts-with at left margin (handles "62A", "62-1", etc.)
+  for(var i=0;i<items.length;i++){
+    var it=items[i];
+    var str=(it.str||'').trim();
+    if(str.startsWith(numStr)&&str.length<=numStr.length+3&&it.transform[4]<120) return it.transform[5];
+  }
+  return null;
+}
+
+window.sdGenerate=async function(){
+  if(!SD.scenes.length||!SD.scriptB64||!SD.scriptBuf)return;
+  document.getElementById('sd-progress').style.display='block';
+  document.getElementById('sd-results').style.display='none';
+  document.getElementById('sd-gen-btn').disabled=true;
+  clearStat('sd-gen-status');
+
+  var scNums=SD.scenes.map(function(s){return s.num;});
+  sdProg('analyze','run','Sending script to Claude: '+scNums.join(', ')+'...');
+  sdProg('extract','','');sdProg('annotate','','');sdProg('compile','','');
+
+  var PROMPT=
+    'Analyze this film script PDF. I need daily sides for scenes: '+scNums.join(', ')+'.\\n\\n'+
+    'Return ONLY valid JSON, no other text:\\n'+
+    '{\\n'+
+    '  "scenes": [\\n'+
+    '    {"num":"62","heading":"INT. FRENCH RESTAURANT - DAY","pdfPages":[29,30],"status":"found"}\\n'+
+    '  ],\\n'+
+    '  "splitPages": [\\n'+
+    '    {"pdfPage":29,"scenes":[{"num":"61","isTarget":false},{"num":"62","isTarget":true}]}\\n'+
+    '  ],\\n'+
+    '  "pagesToInclude":[28,29,30]\\n'+
+    '}\\n\\n'+
+    'RULES:\\n'+
+    '- pdfPages/pdfPage = ACTUAL PDF page numbers counting from 1 for the very first page of this file (including title pages and blank pages). Do NOT use page numbers printed in script headers.\\n'+
+    '- splitPages lists pages where target and non-target scenes share space; scenes in top-to-bottom reading order on the page\\n'+
+    '- pagesToInclude = union of all pdfPages, deduped, ascending\\n'+
+    '- status: "found" or "omitted" (if scene is marked OMITTED in the script)';
+
+  var SYS='Film script analyst. Return ONLY valid JSON, no markdown fences, no extra text.';
+
+  try{
+    // STEP 1: AI locates scenes and pages
+    var raw=await apiCall([{role:'user',content:[
+      {type:'document',source:{type:'base64',media_type:'application/pdf',data:SD.scriptB64}},
+      {type:'text',text:PROMPT}
+    ]}],SYS);
+    var pageMap=parseJSON(raw,'sides page map');
+    SD.pageMap=pageMap;
+    var inclPages=(pageMap.pagesToInclude||[]);
+    if(!inclPages.length) throw new Error('No script pages found for these scene numbers. Check that the scene numbers match the script and try again.');
+    sdProg('analyze','done','Script analyzed: '+inclPages.length+' pages across '+scNums.length+' scenes');
+
+    // STEP 2: Load pdf-lib + pdf.js
+    sdProg('extract','run','Loading libraries and extracting pages...');
+    if(typeof PDFLib==='undefined'){
+      await new Promise(function(res,rej){
+        var s=document.createElement('script');
+        s.src='https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+        s.onload=res;s.onerror=function(){rej(new Error('Failed to load pdf-lib from CDN.'));};
+        document.head.appendChild(s);
+      });
+    }
+    if(typeof pdfjsLib==='undefined'){
+      await new Promise(function(res,rej){
+        var s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        s.onload=res;s.onerror=function(){rej(new Error('Failed to load pdf.js from CDN.'));};
+        document.head.appendChild(s);
+      });
+    }
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    var srcPdf=await PDFLib.PDFDocument.load(SD.scriptBuf,{ignoreEncryption:true});
+    var totalPages=srcPdf.getPageCount();
+    var pages0=inclPages.map(function(p){return p-1;}).filter(function(p){return p>=0&&p<totalPages;});
+    pages0=[...new Set(pages0)].sort(function(a,b){return a-b;});
+    sdProg('extract','done',totalPages+' total pages in script, extracting '+pages0.length);
+
+    // STEP 3: Extract real text coordinates with pdf.js
+    sdProg('annotate','run','Extracting exact annotation positions from script text...');
+    var pdfjsDoc=await pdfjsLib.getDocument({data:new Uint8Array(SD.scriptBuf)}).promise;
+
+    // headingCoords[pageNum1] = [{num, y}]  y in PDF points from bottom (same coord system as pdf-lib)
+    var headingCoords={};
+    // splitData[pageNum1] = [{num, isTarget, y}] sorted top to bottom (descending y value)
+    var splitData={};
+
+    for(var si=0;si<(pageMap.splitPages||[]).length;si++){
+      var sp=pageMap.splitPages[si];
+      var pnum=sp.pdfPage;
+      if(pnum<1||pnum>totalPages) continue;
+      var pdfjsPage=await pdfjsDoc.getPage(pnum);
+      var tc=await pdfjsPage.getTextContent();
+      var segsWithY=(sp.scenes||[]).map(function(sc){
+        return{num:sc.num,isTarget:sc.isTarget,y:findSceneNumInText(tc.items,sc.num)};
+      });
+      segsWithY.sort(function(a,b){
+        if(a.y===null&&b.y===null)return 0;
+        if(a.y===null)return 1;
+        if(b.y===null)return -1;
+        return b.y-a.y;
+      });
+      splitData[pnum]=segsWithY;
+    }
+
+    for(var si=0;si<(pageMap.scenes||[]).length;si++){
+      var sc=pageMap.scenes[si];
+      if(sc.status!=='found'||!sc.pdfPages||!sc.pdfPages.length) continue;
+      var headPage=sc.pdfPages[0];
+      if(headPage<1||headPage>totalPages) continue;
+      var pdfjsPage=await pdfjsDoc.getPage(headPage);
+      var tc=await pdfjsPage.getTextContent();
+      var y=findSceneNumInText(tc.items,sc.num);
+      if(y!==null){
+        if(!headingCoords[headPage])headingCoords[headPage]=[];
+        headingCoords[headPage].push({num:sc.num,y:y});
+      }
+    }
+
+    var scenePageMap={};
+    (pageMap.scenes||[]).forEach(function(sc){
+      scenePageMap[sc.num]=(sc.pdfPages||[]).map(function(p){return pages0.indexOf(p-1);}).filter(function(i){return i>=0;});
+    });
+
+    function annotatePage(page,origPageNum1){
+      var sz=page.getSize();
+      var W=sz.width,H=sz.height;
+      var RGB=PDFLib.rgb;
+      var margin=40;
+
+      // Slashes through non-target regions using real y boundaries from pdf.js
+      var segs=splitData[origPageNum1];
+      if(segs&&segs.length>=2){
+        for(var i=0;i<segs.length;i++){
+          if(!segs[i].isTarget){
+            // Top of slash region: page top for first segment; else just above this segment heading
+            var yTop=(i===0)?H:(segs[i].y!==null?segs[i].y+14:H);
+            // Bottom of slash region: page bottom for last segment; else just above next heading
+            var yBot=(i===segs.length-1)?0:(segs[i+1].y!==null?segs[i+1].y+10:0);
+            if(yTop<=yBot) continue;
+            page.drawLine({start:{x:margin,y:yTop},end:{x:W-margin,y:yBot},thickness:1.8,color:RGB(0,0,0),opacity:0.55});
+            if(yTop<H-4) page.drawLine({start:{x:margin,y:yTop},end:{x:W-margin,y:yTop},thickness:0.4,color:RGB(0,0,0),opacity:0.3});
+            if(yBot>4) page.drawLine({start:{x:margin,y:yBot},end:{x:W-margin,y:yBot},thickness:0.4,color:RGB(0,0,0),opacity:0.3});
+          }
+        }
+      }
+
+      // Circles at exact heading y positions from pdf.js
+      var headings=headingCoords[origPageNum1];
+      if(headings){
+        headings.forEach(function(h){
+          var numLen=String(h.num).length;
+          var rx=numLen===1?10:numLen===2?13:16;
+          page.drawEllipse({x:48,y:h.y,xScale:rx,yScale:9,color:RGB(0,0,0),opacity:0,borderColor:RGB(0,0,0),borderWidth:1.5,borderOpacity:0.9});
+          page.drawEllipse({x:W-48,y:h.y,xScale:rx,yScale:9,color:RGB(0,0,0),opacity:0,borderColor:RGB(0,0,0),borderWidth:1.5,borderOpacity:0.9});
+        });
+      }
+    }
+
+    // Build raw (unannotated) PDF
+    var rawDoc=await PDFLib.PDFDocument.create();
+    var rawCopied=await rawDoc.copyPages(srcPdf,pages0);
+    rawCopied.forEach(function(p){rawDoc.addPage(p);});
+    SD.rawBytes=await rawDoc.save();
+
+    // Build annotated script-order PDF
+    var scriptDoc=await PDFLib.PDFDocument.create();
+    var scriptCopied=await scriptDoc.copyPages(srcPdf,pages0);
+    scriptCopied.forEach(function(p,i){
+      scriptDoc.addPage(p);
+      annotatePage(scriptDoc.getPage(i),pages0[i]+1);
+    });
+    SD.scriptBytes=await scriptDoc.save();
+    sdProg('annotate','done','Annotations applied: circles and slashes at exact text positions');
+
+    // STEP 4: Shooting-order PDF
+    sdProg('compile','run','Building shooting-order PDF...');
+    var shootDoc=await PDFLib.PDFDocument.create();
+    var addedIdx=new Set();
+    for(var si=0;si<SD.scenes.length;si++){
+      var snum=SD.scenes[si].num;
+      var idxList=scenePageMap[snum]||[];
+      for(var pi=0;pi<idxList.length;pi++){
+        var idx=idxList[pi];
+        if(!addedIdx.has(idx)){
+          addedIdx.add(idx);
+          var orig1=pages0[idx]+1;
+          var copied=await shootDoc.copyPages(srcPdf,[pages0[idx]]);
+          shootDoc.addPage(copied[0]);
+          annotatePage(shootDoc.getPage(shootDoc.getPageCount()-1),orig1);
+        }
+      }
+    }
+    SD.shootBytes=await shootDoc.save();
+    sdProg('compile','done','Both versions ready');
+
+    document.getElementById('sd-results').style.display='block';
+    document.getElementById('sd-dl-script-sub').textContent=pages0.length+' pages';
+    document.getElementById('sd-dl-shoot-sub').textContent=addedIdx.size+' pages';
+    document.getElementById('sd-dl-raw-sub').textContent=pages0.length+' pages, no marks';
+    document.getElementById('sd-summary').textContent=
+      pages0.length+' pages extracted, '+scNums.length+' scenes, '+
+      Math.round(SD.scriptBytes.length/1024)+'KB annotated';
+
+    var bd=document.getElementById('sd-breakdown');
+    bd.innerHTML=(pageMap.scenes||[]).map(function(sc){
+      var found=sc.status==='found';
+      var pg0=sc.pdfPages&&sc.pdfPages[0];
+      var hasCircle=pg0&&headingCoords[pg0]&&headingCoords[pg0].some(function(h){return h.num===sc.num;});
+      return '<div class="sd-break-row">'+
+        '<div class="sd-break-num">Sc '+esc(sc.num)+'</div>'+
+        '<div class="sd-break-heading">'+esc(sc.heading||'')+'</div>'+
+        '<div class="sd-break-pages">PDF p.'+(sc.pdfPages||[]).join(', p.')+(hasCircle?' (circled)':'')+'</div>'+
+        '<div class="sd-break-tag '+(found?'ok':'miss')+'">'+(found?'found':'omitted')+'</div>'+
+        '</div>';
+    }).join('');
+
+    document.getElementById('sd-gen-btn').disabled=false;
+
+  }catch(e){
+    ['analyze','extract','annotate','compile'].forEach(function(s){
+      if((document.getElementById('sdd-'+s)||{}).className==='sd-dot run')
+        sdProg(s,'err','Error: '+e.message.substring(0,80));
+    });
+    showStat('sd-gen-status','err',e.message.substring(0,70));
+    document.getElementById('sd-gen-btn').disabled=false;
+    console.error('[Sides]',e);
+  }
+};
+
+window.sdDownload=function(type){
+  var bytes=type==='script'?SD.scriptBytes:type==='shoot'?SD.shootBytes:SD.rawBytes;
+  if(!bytes){alert('Generate sides first.');return;}
+  var base=SD.scriptName.replace(/\.pdf$/i,'').replace(/[^a-z0-9_\-]/gi,'-');
+  var suffix=type==='script'?'-sides-script-order':type==='shoot'?'-sides-shoot-order':'-sides-raw';
+  var blob=new Blob([bytes],{type:'application/pdf'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download=base+suffix+'.pdf';a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);},5000);
 };
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────

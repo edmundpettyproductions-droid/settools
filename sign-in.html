@@ -349,7 +349,8 @@ sigCanvas.addEventListener('pointerleave',function(){ sigDrawing=false; });
 function confirmSignin(){
   if(!curActor) return;
   var t=nowStr();
-  SS.records.push({name:curActor.name, role:curActor.role||'', callTime:curActor.callTime||'', signedAt:t, signedOutAt:null, timestamp:Date.now()});
+  var sigData=sigCanvas?sigCanvas.toDataURL('image/png'):null;
+  SS.records.push({name:curActor.name, role:curActor.role||'', callTime:curActor.callTime||'', signedAt:t, signedOutAt:null, timestamp:Date.now(), sig:sigData});
   save();
   document.getElementById('signin-view').style.display='none';
   document.getElementById('sv-icon').textContent='✓';
