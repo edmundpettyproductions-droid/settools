@@ -527,7 +527,11 @@ lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--tex
 // ─── STATE ────────────────────────────────────────────────────────────────────
 var ND = JSON.parse(localStorage.getItem('ST_nextday') || '{"tomorrow":null,"dood":null,"contacts":[],"wxLoc":"","scriptVersion":null}');
 function save(){ try{ localStorage.setItem('ST_nextday', JSON.stringify(ND)); }catch(e){} }
-function apiKey(){ return localStorage.getItem('st-key')||''; }
+// ── BACKEND CONFIG (Supabase Edge Function proxy) ──
+// API key lives server-side; anon key here is public-safe by design.
+var SUPABASE_URL='https://qywzcaghcyueegxnkhjj.supabase.co';
+var SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5d3pjYWdoY3l1ZWVneG5raGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0ODA2MTAsImV4cCI6MjA5NDA1NjYxMH0.is6qHpLiDI-fi2z30bjs4LReBFvWLB3yPoo4XypTLsA';
+function apiKey(){ return 'proxy'; }  // truthy so existing UI gates pass; real auth is server-side
 
 // WMO weather code maps
 var WMO_DESC={0:'Clear Sky',1:'Mainly Clear',2:'Partly Cloudy',3:'Overcast',45:'Fog',48:'Icy Fog',51:'Light Drizzle',53:'Drizzle',55:'Heavy Drizzle',61:'Light Rain',63:'Rain',65:'Heavy Rain',71:'Light Snow',73:'Snow',75:'Heavy Snow',77:'Snow Grains',80:'Light Showers',81:'Showers',82:'Heavy Showers',85:'Snow Showers',86:'Heavy Snow Showers',95:'Thunderstorm',96:'Thunderstorm + Hail',99:'Heavy Thunderstorm'};
@@ -575,14 +579,12 @@ function showTab(id){
 }
 window.showTab=showTab;
 
-// ─── ANTHROPIC API ────────────────────────────────────────────────────────────
+// ─── ANTHROPIC API (via Supabase proxy — key never touches the browser) ──────
 async function apiCall(messages, sys){
-  var key=apiKey();
-  if(!key) throw new Error('No API key. Set it in Crew Tracker → Settings.');
-  var resp=await fetch('https://api.anthropic.com/v1/messages',{
+  var resp=await fetch(SUPABASE_URL+'/functions/v1/claude-proxy',{
     method:'POST',
-    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-beta':'pdfs-2024-09-25','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:8000,system:sys,messages:messages})
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:8000,system:sys,messages:messages,beta:'pdfs-2024-09-25'})
   });
   if(!resp.ok){ var e=await resp.json().catch(function(){return{};}); throw new Error(e.error&&e.error.message?e.error.message:'API error '+resp.status); }
   var data=await resp.json();

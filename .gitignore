@@ -22,6 +22,10 @@ dist/
 .env
 .env.local
 
+# Supabase CLI cache
+backend/supabase/.temp/
+backend/supabase/.branches/
+
 # OS junk
 .DS_Store
 Thumbs.db

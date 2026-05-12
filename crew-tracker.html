@@ -897,33 +897,33 @@ function openSettings(){document.getElementById('inp-key').value=localStorage.ge
 function closeSettings(){document.getElementById('modal-settings').classList.add('hidden');}
 function saveSettings(){var k=document.getElementById('inp-key').value.trim();localStorage.setItem('st-key',k);closeSettings();}
 function toggleKeyVis(){var i=document.getElementById('inp-key');i.type=i.type==='password'?'text':'password';}
+// ── BACKEND CONFIG (Supabase Edge Function proxy) ──
+// API key lives server-side; anon key here is public-safe by design.
+var SUPABASE_URL='https://qywzcaghcyueegxnkhjj.supabase.co';
+var SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5d3pjYWdoY3l1ZWVneG5raGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0ODA2MTAsImV4cCI6MjA5NDA1NjYxMH0.is6qHpLiDI-fi2z30bjs4LReBFvWLB3yPoo4XypTLsA';
+
 async function testApiKey(){
-  var key=document.getElementById('inp-key').value.trim();
   var res=document.getElementById('api-test-result');
-  if(!key){res.style.display='block';res.style.background='rgba(224,90,90,.15)';res.style.color='var(--danger)';res.textContent='Enter an API key first.';return;}
-  res.style.display='block';res.style.background='var(--bg3)';res.style.color='var(--text2)';res.textContent='Testing…';
+  res.style.display='block';res.style.background='var(--bg3)';res.style.color='var(--text2)';res.textContent='Testing proxy…';
   try{
-    var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    var r=await fetch(SUPABASE_URL+'/functions/v1/claude-proxy',{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},
       body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:10,messages:[{role:'user',content:'hi'}]})});
-    if(r.ok){res.style.background='rgba(76,175,125,.15)';res.style.color='var(--success)';res.textContent='✓ Connected — API key is valid!';}
-    else{var t=await r.text();res.style.background='rgba(224,90,90,.15)';res.style.color='var(--danger)';res.textContent='Error '+r.status+': '+t.substring(0,120);}
+    if(r.ok){res.style.background='rgba(76,175,125,.15)';res.style.color='var(--success)';res.textContent='✓ Proxy connected — server-side API key is working';}
+    else{var t=await r.text();res.style.background='rgba(224,90,90,.15)';res.style.color='var(--danger)';res.textContent='Error '+r.status+': '+t.substring(0,200);}
   }catch(e){res.style.background='rgba(224,90,90,.15)';res.style.color='var(--danger)';res.textContent='Network error: '+e.message;}
 }
 
-// ── API ──
+// ── API (via Supabase proxy — key never touches the browser) ──
 async function apiCall(msgs,system,model){
-  var key=localStorage.getItem('st-key')||'';
-  if(!key){alert('Set your Anthropic API key in Settings (⚙).');throw new Error('No API key');}
-  var body={model:model||'claude-sonnet-4-6',max_tokens:32000,messages:msgs};
+  var body={model:model||'claude-sonnet-4-6',max_tokens:32000,messages:msgs,beta:'pdfs-2024-09-25'};
   if(system) body.system=system;
   var resp;
   try{
-    resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true','anthropic-beta':'pdfs-2024-09-25'},
+    resp=await fetch(SUPABASE_URL+'/functions/v1/claude-proxy',{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},
       body:JSON.stringify(body)});
-  }catch(e){throw new Error('Network error — api.anthropic.com unreachable. ('+e.message+')');}
+  }catch(e){throw new Error('Network error — proxy unreachable. ('+e.message+')');}
   if(!resp.ok){var txt=await resp.text();throw new Error('API '+resp.status+': '+txt.substring(0,300));}
   var data=await resp.json();
   return(data.content||[]).map(function(b){return b.text||'';}).join('');

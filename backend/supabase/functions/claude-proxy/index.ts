@@ -1,12 +1,14 @@
 // Anthropic API proxy — keeps the API key on the server.
-// Deploy: `supabase functions deploy claude-proxy`
-// Secret: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`
+//
+// Deploy: `npx supabase functions deploy claude-proxy`
+// Secret: `npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`
+//
+// Auth model (MVP): callers must include `Authorization: Bearer <SUPABASE_ANON_KEY>`.
+// Supabase's gateway rejects requests without this header (configured via verify_jwt=true
+// in config.toml). The anon key is safe to embed in the frontend.
+// Phase 3 upgrade: switch to user JWTs once we add Supabase Auth UI.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
-const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
 const ALLOWED_MODELS = new Set([
   "claude-opus-4-7",
@@ -22,22 +24,13 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-  if (req.method !== "POST") {
-    return json({ error: "POST only" }, 405);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST")    return json({ error: "POST only" }, 405);
+
+  if (!ANTHROPIC_API_KEY) {
+    return json({ error: "Server misconfigured: ANTHROPIC_API_KEY not set" }, 500);
   }
 
-  // Verify the caller is a logged-in user in any workspace.
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: { user }, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !user) return json({ error: "Not authenticated" }, 401);
-
-  // Parse and validate the request body.
   let body: any;
   try { body = await req.json(); }
   catch { return json({ error: "Invalid JSON" }, 400); }
@@ -50,7 +43,6 @@ Deno.serve(async (req) => {
     return json({ error: "messages[] required" }, 400);
   }
 
-  // Forward to Anthropic.
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "x-api-key": ANTHROPIC_API_KEY,
