@@ -1106,6 +1106,7 @@ function renderSceneBar(){
 }
 function updateSceneAheadBehind(){
   var abEl=document.getElementById('sb-ab');if(!abEl) return;
+  if(typeof sceneState==='undefined'||!sceneState) return;
   var scenes=sceneState.scenes,ci=sceneState.currentIdx;
   if(ci<0||ci>=scenes.length||!scenes[ci]||scenes[ci].isLunch){abEl.style.display='none';return;}
   var curSc=scenes[ci];
@@ -1158,12 +1159,7 @@ function uhProcessPDF(file){
   reader.readAsDataURL(file);
 }
 async function uhRunExtract(b64){
-  // Pre-flight: make sure there's an API key before doing anything
-  if(!localStorage.getItem('st-key')){
-    uhShowStatus('err','No API key — open ⚙ Settings to add one');
-    showStat('cs-status','err','⚠ No Anthropic API key set. Click ⚙ Settings in the nav bar to add one.');
-    return;
-  }
+  // Key lives server-side now (Supabase Edge Function proxy). No local gate needed.
   try{
     uhShowStatus('','Extracting…');showStat('cs-status','loading','Analyzing call sheet…');
     var raw=await apiCall([{role:'user',content:[
