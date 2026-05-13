@@ -122,6 +122,19 @@ h1{font-family:'Barlow Condensed',sans-serif;font-size:2.2rem;letter-spacing:.1e
   </div>
 </div>
 
+<div class="backup-panel" id="sync-panel">
+  <div class="backup-hdr">
+    <span>⬣ Cross-Device Sync</span>
+    <span id="sync-status" style="font-size:10px;color:#5c5c6e;font-family:monospace">connecting…</span>
+  </div>
+  <div class="backup-body" id="sync-body" style="display:none">
+    <!-- populated by JS once init() completes -->
+  </div>
+  <div class="backup-note" id="sync-note">
+    <strong>Phase 2 sync.</strong> Create a workspace on the DP machine and share the 6-character code with the kiosk tablet to keep them in sync. Data still saves locally first — works fine offline. Changes flow up + down every 10 seconds.
+  </div>
+</div>
+
 <div class="backup-panel">
   <div class="backup-hdr">
     <span>⬢ Backup / Restore</span>
@@ -209,6 +222,111 @@ h1{font-family:'Barlow Condensed',sans-serif;font-size:2.2rem;letter-spacing:.1e
     setStatus('ok','Cleared '+keys.length+' keys. Reloading…');
     setTimeout(function(){location.reload();},600);
   });
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/sync.js"></script>
+<script>
+// Cross-Device Sync UI — bootstrap workspace creation/join, render status row.
+(function(){
+  var STATUS = document.getElementById('sync-status');
+  var BODY   = document.getElementById('sync-body');
+
+  function btn(label, danger){
+    return '<button class="backup-btn'+(danger?' danger':'')+'" data-act="'+label.toLowerCase().replace(/[^a-z]/g,'-')+'">'+label+'</button>';
+  }
+
+  function renderNoWorkspace(){
+    STATUS.textContent = 'not synced';
+    STATUS.style.color = '#5c5c6e';
+    BODY.style.display = 'flex';
+    BODY.innerHTML =
+      btn('Create New Workspace') +
+      btn('Join Existing') +
+      '<span class="backup-status" id="sync-msg">Pick one — Create on the main machine, Join on extra devices.</span>';
+    BODY.querySelector('[data-act="create-new-workspace"]').onclick = doCreate;
+    BODY.querySelector('[data-act="join-existing"]').onclick        = doJoin;
+  }
+
+  function renderJoined(code){
+    STATUS.textContent = 'synced · code ' + code;
+    STATUS.style.color = '#34d399';
+    BODY.style.display = 'flex';
+    BODY.innerHTML =
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:10px;color:#5c5c6e;text-transform:uppercase;letter-spacing:.08em">Workspace code — share with kiosk</div>' +
+        '<div style="font-family:monospace;font-size:22px;font-weight:700;color:#f0c040;letter-spacing:.08em">' + code + '</div>' +
+      '</div>' +
+      btn('Pull Now') +
+      btn('Leave Workspace', true) +
+      '<span class="backup-status ok" id="sync-msg">Synced. Polling every 10s.</span>';
+    BODY.querySelector('[data-act="pull-now"]').onclick        = doPull;
+    BODY.querySelector('[data-act="leave-workspace"]').onclick = doLeave;
+  }
+
+  function msg(text, cls){
+    var el = document.getElementById('sync-msg');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'backup-status' + (cls ? ' '+cls : '');
+  }
+
+  async function doCreate(){
+    var name = prompt('Workspace name (e.g. production title):', 'My Production');
+    if (name === null) return;
+    msg('Creating workspace…');
+    try {
+      var code = await window.SetToolsSync.createWorkspace(name);
+      renderJoined(code);
+      msg('Workspace created. Share code ' + code + ' with other devices.', 'ok');
+    } catch (e) {
+      msg('Failed: ' + (e.message || e), 'err');
+    }
+  }
+
+  async function doJoin(){
+    var code = prompt('Enter 6-character workspace code:');
+    if (!code) return;
+    code = code.toUpperCase().trim();
+    if (!confirm('Joining "' + code + '" will REPLACE your local data with the workspace data.\n\nDownload a backup first if you want to preserve what\'s currently in this browser.\n\nContinue?')) return;
+    msg('Joining…');
+    try {
+      await window.SetToolsSync.joinWorkspace(code);
+      renderJoined(code);
+      msg('Joined. Data pulled from workspace.', 'ok');
+      setTimeout(function(){ location.reload(); }, 1200);
+    } catch (e) {
+      msg('Failed: ' + (e.message || e), 'err');
+    }
+  }
+
+  async function doPull(){
+    msg('Pulling…');
+    try { await window.SetToolsSync.pullAll(); msg('Pulled. Latest data applied.', 'ok'); }
+    catch (e) { msg('Pull failed: ' + (e.message || e), 'err'); }
+  }
+
+  function doLeave(){
+    if (!confirm('Leave this workspace?\n\nYour local data stays. Future changes stop syncing to other devices.\n\nYou can rejoin anytime with the same code.')) return;
+    window.SetToolsSync.leaveWorkspace();
+    renderNoWorkspace();
+    msg('Left workspace. Local data preserved.');
+  }
+
+  (async function boot(){
+    try {
+      var s = await window.SetToolsSync.init();
+      if (s.hasWorkspace) renderJoined(s.workspaceCode);
+      else                renderNoWorkspace();
+    } catch (e) {
+      STATUS.textContent = 'offline';
+      STATUS.style.color = '#e05a5a';
+      BODY.style.display = 'flex';
+      BODY.innerHTML = '<span class="backup-status err">Could not reach Supabase: ' + (e.message || e) + '. Tools still work locally.</span>';
+      console.warn('[sync] init failed:', e);
+    }
+  })();
 })();
 </script>
 
