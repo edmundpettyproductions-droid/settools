@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f0c040">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
 <title>Set Tools</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
@@ -376,17 +379,12 @@ table.st-log-t td.mono{font-family:var(--mono)}
 <div id="modal-settings" class="modal-bg hidden">
 <div class="modal">
   <h3>Settings</h3>
-  <p>Your Anthropic API key is stored only in this browser and sent only to Anthropic's API.</p>
-  <div class="frow" style="flex-direction:row;align-items:center;gap:6px">
-    <label style="flex-shrink:0">API Key</label>
-    <input type="password" class="finput" id="inp-key" placeholder="sk-ant-..." style="flex:1">
-    <button class="btn btn-sm" onclick="toggleKeyVis()">👁</button>
-  </div>
+  <p>The Anthropic API key lives on the server (Supabase Edge Function). It never touches this browser. No setup required.</p>
+  <input type="hidden" id="inp-key" value="proxy">
   <div id="api-test-result" style="display:none;font-size:11px;margin-top:6px;padding:6px 8px;border-radius:4px;font-family:var(--mono)"></div>
   <div class="modal-btns">
-    <button class="btn" onclick="closeSettings()">Cancel</button>
-    <button class="btn" onclick="testApiKey()" style="margin-right:auto">Test Connection</button>
-    <button class="btn btn-a" onclick="saveSettings()">Save</button>
+    <button class="btn" onclick="closeSettings()">Close</button>
+    <button class="btn btn-a" onclick="testApiKey()" style="margin-left:auto">Test Connection</button>
   </div>
 </div>
 </div>
