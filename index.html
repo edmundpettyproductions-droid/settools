@@ -258,9 +258,11 @@ h1{font-family:'Barlow Condensed',sans-serif;font-size:2.2rem;letter-spacing:.1e
         '<div style="font-size:10px;color:#5c5c6e;text-transform:uppercase;letter-spacing:.08em">Workspace code — share with kiosk</div>' +
         '<div style="font-family:monospace;font-size:22px;font-weight:700;color:#f0c040;letter-spacing:.08em">' + code + '</div>' +
       '</div>' +
+      btn('Push Local Now') +
       btn('Pull Now') +
       btn('Leave Workspace', true) +
       '<span class="backup-status ok" id="sync-msg">Synced. Polling every 10s.</span>';
+    BODY.querySelector('[data-act="push-local-now"]').onclick  = doPush;
     BODY.querySelector('[data-act="pull-now"]').onclick        = doPull;
     BODY.querySelector('[data-act="leave-workspace"]').onclick = doLeave;
   }
@@ -305,6 +307,12 @@ h1{font-family:'Barlow Condensed',sans-serif;font-size:2.2rem;letter-spacing:.1e
     msg('Pulling…');
     try { await window.SetToolsSync.pullAll(); msg('Pulled. Latest data applied.', 'ok'); }
     catch (e) { msg('Pull failed: ' + (e.message || e), 'err'); }
+  }
+
+  async function doPush(){
+    msg('Pushing all local data…');
+    try { await window.SetToolsSync.pushAllLocal(); msg('Pushed. Check kv_store table to see rows.', 'ok'); }
+    catch (e) { msg('Push failed: ' + (e.message || e), 'err'); }
   }
 
   function doLeave(){

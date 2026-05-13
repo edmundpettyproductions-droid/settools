@@ -206,4 +206,9 @@ window.SetToolsSync = {
   }
 };
 
+// Auto-init on every page load. Safe to call multiple times; subsequent calls
+// short-circuit via the `ready` flag. Failure is logged but never thrown —
+// the tools must keep working from localStorage even when Supabase is down.
+init().catch(function(e){ console.warn('[sync] auto-init failed (offline mode):', e && e.message || e); });
+
 })();
