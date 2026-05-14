@@ -4,8 +4,9 @@
   import DailyBriefing from './components/DailyBriefing.svelte';
   import GlobalResources from './components/GlobalResources.svelte';
   import CastBible from './components/CastBible.svelte';
+  import Contacts from './components/Contacts.svelte';
 
-  type Tab = 'tomorrow' | 'resources' | 'cast-bible';
+  type Tab = 'tomorrow' | 'resources' | 'cast-bible' | 'contacts';
 
   let hasWorkspace = $state(false);
   let workspaceCode = $state<string | null>(null);
@@ -17,10 +18,10 @@
   // Restore last-active tab from sessionStorage (per-tab, not synced)
   onMount(async () => {
     const saved = sessionStorage.getItem('st_app_tab') as Tab | null;
-    if (saved === 'tomorrow' || saved === 'resources' || saved === 'cast-bible') tab = saved;
-    // Allow deep-linking to a tab via the URL hash, e.g. /tomorrow/#cast-bible
+    if (saved === 'tomorrow' || saved === 'resources' || saved === 'cast-bible' || saved === 'contacts') tab = saved;
+    // Allow deep-linking to a tab via the URL hash, e.g. /tomorrow/#contacts
     const h = location.hash.replace('#', '');
-    if (h === 'tomorrow' || h === 'resources' || h === 'cast-bible') tab = h;
+    if (h === 'tomorrow' || h === 'resources' || h === 'cast-bible' || h === 'contacts') tab = h;
     try {
       const s = await sync.init();
       hasWorkspace = s.hasWorkspace;
@@ -76,8 +77,9 @@
       <div class="brand">Set Tools <span class="ws">· {workspaceCode}</span></div>
       <div class="tabs">
         <button class:active={tab === 'tomorrow'} onclick={() => tab = 'tomorrow'}>🌅 Tomorrow</button>
-        <button class:active={tab === 'resources'} onclick={() => tab = 'resources'}>📁 Resources</button>
+        <button class:active={tab === 'contacts'} onclick={() => tab = 'contacts'}>📞 Contacts</button>
         <button class:active={tab === 'cast-bible'} onclick={() => tab = 'cast-bible'}>🎭 Cast Bible</button>
+        <button class:active={tab === 'resources'} onclick={() => tab = 'resources'}>📁 Resources</button>
       </div>
       <a class="home-link" href="/index.html">← Set Tools home</a>
     </div>
@@ -85,10 +87,12 @@
 
   {#if tab === 'tomorrow'}
     <DailyBriefing />
-  {:else if tab === 'resources'}
-    <GlobalResources />
-  {:else}
+  {:else if tab === 'contacts'}
+    <Contacts />
+  {:else if tab === 'cast-bible'}
     <CastBible />
+  {:else}
+    <GlobalResources />
   {/if}
 {/if}
 

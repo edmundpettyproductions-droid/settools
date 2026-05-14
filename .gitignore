@@ -1,5 +1,14 @@
-# Production PDFs — keep off GitHub
+# Production materials with PII — keep off GitHub
 *.pdf
+*.xlsx
+*.xlsm
+*.xls
+
+# Sample bibles / analysis dumps (anything in _samples is local-only)
+_samples/__pycache__/
+_samples/*.txt
+_samples/*.csv
+_samples/*.tsv
 
 # Large installer files
 *.exe

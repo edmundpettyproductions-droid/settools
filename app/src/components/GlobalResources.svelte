@@ -130,6 +130,13 @@
       },
     },
     {
+      key: '__contacts__', label: 'Contacts (merged view)', icon: '📞', type: 'cast',
+      description: 'Unified directory of everyone in this workspace — cast, crew, agents, guardians — merged across Call Sheet, Cast Bible, and Next Day Prep. One-tap to call, text, or email from any device.',
+      toolPath: '/tomorrow/', toolHash: '#contacts',
+      uploadHash: null,  // populated automatically from other sources
+      summarize: () => 'Auto-populated from all contact sources',
+    },
+    {
       key: 'settools_cast_bible', label: 'Cast Bible', icon: '🎭', type: 'cast',
       description: 'Full cast roster with agent/manager contacts, normalized from your bible PDF / sheet. Upload and edit in the dedicated Cast Bible tab; this card is just a status indicator.',
       toolPath: '/tomorrow/', toolHash: '#cast-bible',  // same-origin → opens the Svelte tab
@@ -184,8 +191,11 @@
 
   function refresh() {
     resources = CATALOG.map((entry) => {
-      const raw = sync.get(entry.key);
-      const present = raw !== null && raw.length > 0;
+      // Virtual entries (keys starting with __) are always "present" and
+      // their summarize() is called with an empty string.
+      const isVirtual = entry.key.startsWith('__');
+      const raw = isVirtual ? '' : sync.get(entry.key);
+      const present = isVirtual || (raw !== null && raw.length > 0);
       return {
         key: entry.key,
         label: entry.label,
@@ -196,7 +206,7 @@
         toolHash: entry.toolHash,
         uploadHash: entry.uploadHash,
         size: raw?.length ?? 0,
-        countSummary: present && raw ? entry.summarize(raw) : 'Not loaded yet',
+        countSummary: isVirtual ? entry.summarize('') : (present && raw ? entry.summarize(raw) : 'Not loaded yet'),
         present,
       };
     });
@@ -266,7 +276,7 @@
           {#if r.uploadHash !== null}
             <a class="btn upload" href={toolUrl(r.toolPath, r.uploadHash)} target="_blank" rel="noopener">⬆ Upload</a>
           {/if}
-          {#if r.present}
+          {#if r.present && !r.key.startsWith('__')}
             <button class="btn ghost" onclick={() => viewRaw(r.key)}>View JSON</button>
             <button class="btn ghost" onclick={() => downloadAsJSON(r.key)}>Download</button>
           {/if}

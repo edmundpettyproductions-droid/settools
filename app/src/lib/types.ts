@@ -114,3 +114,43 @@ export interface CastBibleState {
   uploads: CastBibleUpload[];
   last_updated?: string;     // ISO datetime
 }
+
+/** Where a unified contact entry was pulled from. A single person may
+ *  appear in multiple sources (e.g., a lead actor is in the call sheet,
+ *  the cast bible, and the sign-in records simultaneously). */
+export type ContactSource =
+  | 'call_sheet'   // settools_cast / settools_crew (call-sheet derived)
+  | 'cast_bible'   // settools_cast_bible (richest contact data)
+  | 'sign_in'      // ST_signin (touchscreen records)
+  | 'next_day';    // ST_nextday.contacts
+
+/** Categories for unified contact display + filtering. */
+export type ContactCategory = 'cast' | 'crew' | 'agent' | 'manager' | 'guardian' | 'vendor' | 'other';
+
+/** A merged contact, deduplicated across sources by normalized name.
+ *  Fields are populated from the richest available source. */
+export interface UnifiedContact {
+  name: string;
+  category: ContactCategory;
+  role?: string;             // crew role/department or cast role classification
+  department?: string;       // crew dept (e.g., "Camera", "Wardrobe")
+  character?: string;        // cast character name
+  phone?: string;
+  email?: string;
+  // Cast-bible-specific extras (only set when source includes cast_bible)
+  actor_legal?: string;
+  status?: string;           // Locked / Cancelled / etc.
+  agency_name?: string;
+  agent_name?: string;
+  agent_phone?: string;
+  agent_email?: string;
+  manager_name?: string;
+  manager_phone?: string;
+  manager_email?: string;
+  guardian_name?: string;
+  guardian_phone?: string;
+  diet?: string;
+  notes?: string;
+  // Provenance
+  sources: ContactSource[];
+}
