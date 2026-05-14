@@ -12,9 +12,24 @@
     description: string;
     size: number;          // bytes
     countSummary: string;  // "12 entries", "8 days", etc.
-    toolUrl: string;       // where to view it in the vanilla tools
+    toolPath: string;      // vanilla-tool page
+    toolHash: string;      // hash to deep-link to the right section
+    uploadHash: string | null;  // if upload supported, hash that opens upload zone
     type: ResourceType;
     present: boolean;      // false → show as "not loaded" placeholder
+  }
+
+  // The vanilla tools live at :8282 (Python http.server). In dev, the Svelte
+  // app runs at :5173 — cross-origin. In production (built into project root)
+  // they share an origin. Compute the right base at runtime.
+  function toolsBase(): string {
+    if (typeof location === 'undefined') return '';
+    if (location.port === '5173') return 'http://localhost:8282';
+    return '';
+  }
+
+  function toolUrl(path: string, hash: string): string {
+    return `${toolsBase()}${path}${hash}`;
   }
 
   // Hardcoded catalog of known data keys. Order = display order.
@@ -26,7 +41,7 @@
     {
       key: 'settools_pt', label: 'Projects', icon: '🎬', type: 'project',
       description: 'All shoots you have on file. Switch active project here.',
-      toolUrl: '/crew-tracker.html',
+      toolPath: '/crew-tracker.html', toolHash: '#home', uploadHash: null,
       summarize: (raw) => {
         try {
           const v = JSON.parse(raw) as { projects?: Record<string, { name: string; days?: unknown[] }>; activeProject?: string };
@@ -38,8 +53,9 @@
     },
     {
       key: 'settools_uh', label: 'Universal Header', icon: '📋', type: 'header',
-      description: 'Today\'s call time, first shot, location, director, episode.',
-      toolUrl: '/crew-tracker.html',
+      description: 'Today\'s call time, first shot, location, director, episode. Edited inline at the top of Crew Tracker.',
+      toolPath: '/crew-tracker.html', toolHash: '#home',
+      uploadHash: '#upload-call-sheet',  // call sheet upload populates the header
       summarize: (raw) => {
         try {
           const v = JSON.parse(raw) as Record<string, string>;
@@ -50,8 +66,8 @@
     },
     {
       key: 'settools_scenes', label: 'Scenes', icon: '🎞', type: 'scenes',
-      description: 'Scene list with locations, times, and current shoot order.',
-      toolUrl: '/crew-tracker.html',
+      description: 'Scene list extracted from the call sheet. Re-order or mark complete in Crew Tracker.',
+      toolPath: '/crew-tracker.html', toolHash: '#home', uploadHash: null,
       summarize: (raw) => {
         try {
           const v = JSON.parse(raw) as { scenes?: unknown[] };
@@ -62,8 +78,9 @@
     },
     {
       key: 'settools_st', label: 'Scene Tracker', icon: '📊', type: 'schedule',
-      description: 'Shooting + strip schedule with ahead/behind tracking.',
-      toolUrl: '/crew-tracker.html',
+      description: 'Shooting Schedule + Strip Schedule PDFs combined to track ahead / behind through the day.',
+      toolPath: '/crew-tracker.html', toolHash: '#scene-tracker',
+      uploadHash: '#scene-tracker',  // both upload zones live on the scene-tracker page
       summarize: (raw) => {
         try {
           const v = JSON.parse(raw) as { rows?: unknown[]; log?: unknown[] };
@@ -75,20 +92,23 @@
     },
     {
       key: 'settools_dood', label: 'Day Out of Days', icon: '📅', type: 'dood',
-      description: 'Cast + department schedules grouped by date.',
-      toolUrl: '/crew-tracker.html',
+      description: 'Per-department DOODs (Cast, Stunt, Vehicle, Wardrobe, Makeup, etc.). Upload one PDF per department; the tool consolidates them into a "who works tomorrow, across every department" view.',
+      toolPath: '/crew-tracker.html', toolHash: '#dood',
+      uploadHash: '#dood-upload',
       summarize: (raw) => {
         try {
           const v = JSON.parse(raw) as { departments?: Record<string, unknown> };
-          const n = Object.keys(v.departments ?? {}).length;
-          return `${n} department${n === 1 ? '' : 's'}`;
+          const depts = Object.keys(v.departments ?? {});
+          if (!depts.length) return 'No DOODs uploaded yet';
+          if (depts.length <= 3) return depts.join(' · ');
+          return `${depts.slice(0, 2).join(' · ')} + ${depts.length - 2} more`;
         } catch { return '—'; }
       },
     },
     {
       key: 'settools_cast', label: 'Cast Tracker', icon: '🎭', type: 'cast',
-      description: 'Cast members with call times and arrival status.',
-      toolUrl: '/crew-tracker.html',
+      description: 'Cast call times + live arrival status. Populated from the call sheet.',
+      toolPath: '/crew-tracker.html', toolHash: '#cast-timer', uploadHash: null,
       summarize: (raw) => {
         try {
           const v = JSON.parse(raw) as { people?: unknown[]; rows?: unknown[] };
@@ -99,8 +119,8 @@
     },
     {
       key: 'settools_crew', label: 'Crew Tracker', icon: '👥', type: 'crew',
-      description: 'Crew roster with call times and arrivals.',
-      toolUrl: '/crew-tracker.html',
+      description: 'Crew roster + arrival times. Populated from the call sheet.',
+      toolPath: '/crew-tracker.html', toolHash: '#crew-timer', uploadHash: null,
       summarize: (raw) => {
         try {
           const v = JSON.parse(raw) as { people?: unknown[]; rows?: unknown[] };
@@ -111,8 +131,9 @@
     },
     {
       key: 'ST_nextday', label: 'Next Day Prep', icon: '🌅', type: 'nextday',
-      description: 'Tomorrow\'s draft schedule, contacts, script + docs.',
-      toolUrl: '/next-day.html',
+      description: 'Tomorrow\'s draft: advance schedule, call sheet draft, script + script sides, DOODs, contact list, email blast.',
+      toolPath: '/next-day.html', toolHash: '',
+      uploadHash: '',  // next-day landing page has all upload zones
       summarize: (raw) => {
         try {
           const v = JSON.parse(raw) as { contacts?: unknown[]; docs?: unknown[]; scenes?: unknown[] };
@@ -125,8 +146,8 @@
     },
     {
       key: 'ST_signin', label: 'Sign-In Records', icon: '✍', type: 'signin',
-      description: 'Cast sign-in / sign-out events with signatures.',
-      toolUrl: '/sign-in.html',
+      description: 'Touchscreen sign-in events with signature capture. Kiosk-only — no upload.',
+      toolPath: '/sign-in.html', toolHash: '', uploadHash: null,
       summarize: (raw) => {
         try {
           const v = JSON.parse(raw) as { records?: unknown[]; signins?: unknown[] };
@@ -157,7 +178,9 @@
         icon: entry.icon,
         description: entry.description,
         type: entry.type,
-        toolUrl: entry.toolUrl,
+        toolPath: entry.toolPath,
+        toolHash: entry.toolHash,
+        uploadHash: entry.uploadHash,
         size: raw?.length ?? 0,
         countSummary: present && raw ? entry.summarize(raw) : 'Not loaded yet',
         present,
@@ -225,7 +248,10 @@
         </div>
         <p class="desc">{r.description}</p>
         <div class="actions">
-          <a class="btn" href={r.toolUrl} target="_blank" rel="noopener">Open in tool ↗</a>
+          <a class="btn" href={toolUrl(r.toolPath, r.toolHash)} target="_blank" rel="noopener">Open in tool ↗</a>
+          {#if r.uploadHash !== null}
+            <a class="btn upload" href={toolUrl(r.toolPath, r.uploadHash)} target="_blank" rel="noopener">⬆ Upload</a>
+          {/if}
           {#if r.present}
             <button class="btn ghost" onclick={() => viewRaw(r.key)}>View JSON</button>
             <button class="btn ghost" onclick={() => downloadAsJSON(r.key)}>Download</button>
@@ -281,6 +307,8 @@
   .btn:hover { background: var(--accent2); border-color: var(--accent2); }
   .btn.ghost { background: transparent; color: var(--text2); border-color: var(--border); }
   .btn.ghost:hover { color: var(--accent); border-color: var(--accent); }
+  .btn.upload { background: var(--bg3); color: var(--accent); border-color: rgba(167,139,250,0.4); }
+  .btn.upload:hover { background: var(--bg4); border-color: var(--accent); }
 
   .footnote { font-size: 11.5px; color: var(--text3); margin-top: 32px; line-height: 1.6; max-width: 760px; }
 

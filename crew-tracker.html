@@ -2446,6 +2446,34 @@ stInit();
 doodInit();
 renderSceneBar();
 showPage('home');
+
+// ── Hash-based deep linking from Global Resources ──
+// Resources page links here with hashes like #dood, #scene-tracker, #dood-upload, #upload-call-sheet.
+// We route to the right page and (for *-upload hashes) auto-open the file picker.
+function handleHash(){
+  var h = (location.hash || '').replace(/^#/, '').toLowerCase();
+  if (!h) return;
+  // Routing
+  var routes = {
+    'home':            function(){ showPage('home'); },
+    'cast-timer':      function(){ showPage('cast-timer'); },
+    'crew-timer':      function(){ showPage('crew-timer'); },
+    'scene-tracker':   function(){ showPage('scene-tracker'); },
+    'scenes':          function(){ showPage('scene-tracker'); },
+    'dood':            function(){ showPage('dood'); },
+    'projects':        function(){ openProjects && openProjects(); },
+    // Upload triggers — also switch to the right page first
+    'upload-call-sheet': function(){ showPage('home'); var el=document.getElementById('cs-input'); if(el) setTimeout(function(){el.click();},150); },
+    'dood-upload':       function(){ showPage('dood'); setTimeout(function(){ if(window.doodUploadClick) window.doodUploadClick(); }, 150); },
+    'cast-upload':       function(){ showPage('cast-timer'); var el=document.getElementById('cast-pdf-input'); if(el) setTimeout(function(){el.click();},150); },
+    'crew-upload':       function(){ showPage('crew-timer'); var el=document.getElementById('crew-pdf-input'); if(el) setTimeout(function(){el.click();},150); },
+  };
+  if (routes[h]) routes[h]();
+  // Clear hash so re-clicking the same link works
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+}
+window.addEventListener('hashchange', handleHash);
+handleHash();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="js/sync.js"></script>
