@@ -1,0 +1,80 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import * as sync from './lib/sync';
+  import DailyBriefing from './components/DailyBriefing.svelte';
+
+  let hasWorkspace = $state(false);
+  let workspaceCode = $state<string | null>(null);
+  let joining = $state(false);
+  let creating = $state(false);
+  let err = $state<string | null>(null);
+
+  onMount(async () => {
+    try {
+      const s = await sync.init();
+      hasWorkspace = s.hasWorkspace;
+      workspaceCode = s.workspaceCode;
+    } catch (e) {
+      err = e instanceof Error ? e.message : String(e);
+    }
+  });
+
+  async function create() {
+    const name = prompt('Workspace name (e.g. production title):', 'My Production');
+    if (name === null) return;
+    creating = true; err = null;
+    try {
+      const code = await sync.createWorkspace(name);
+      workspaceCode = code;
+      hasWorkspace = true;
+    } catch (e) {
+      err = e instanceof Error ? e.message : String(e);
+    } finally {
+      creating = false;
+    }
+  }
+
+  async function join() {
+    const code = prompt('Enter 6-character workspace code:');
+    if (!code) return;
+    joining = true; err = null;
+    try {
+      await sync.joinWorkspace(code);
+      workspaceCode = code.toUpperCase().trim();
+      hasWorkspace = true;
+    } catch (e) {
+      err = e instanceof Error ? e.message : String(e);
+    } finally {
+      joining = false;
+    }
+  }
+</script>
+
+{#if !hasWorkspace}
+  <div class="onboard">
+    <h1>Tomorrow's Briefing</h1>
+    <p>Join your production workspace to see tomorrow's logistics, weather, and counts.</p>
+    {#if err}<div class="err">{err}</div>{/if}
+    <div class="actions">
+      <button onclick={create} disabled={creating}>{creating ? 'Creating…' : 'Create New Workspace'}</button>
+      <button onclick={join} disabled={joining} class="ghost">{joining ? 'Joining…' : 'Join with Code'}</button>
+    </div>
+    <p class="hint">If you already created a workspace on the main machine, click <strong>Join</strong> and enter that 6-character code.</p>
+  </div>
+{:else}
+  <DailyBriefing />
+{/if}
+
+<style>
+  .onboard { max-width: 520px; margin: 80px auto; padding: 40px 32px; background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; text-align: center; }
+  .onboard h1 { font-family: var(--cond); font-size: 28px; font-weight: 700; color: var(--accent); letter-spacing: 0.04em; margin-bottom: 12px; }
+  .onboard p { color: var(--text2); font-size: 14px; line-height: 1.5; margin-bottom: 8px; }
+  .onboard p.hint { font-size: 12px; color: var(--text3); margin-top: 18px; }
+  .actions { display: flex; gap: 10px; justify-content: center; margin: 24px 0 0; flex-wrap: wrap; }
+  .actions button { font-family: var(--font); font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 8px; cursor: pointer; transition: all 0.12s; background: var(--accent); color: var(--bg); border: 1px solid var(--accent); }
+  .actions button:hover:not(:disabled) { background: var(--accent2); border-color: var(--accent2); }
+  .actions button.ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .actions button.ghost:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+  .actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .err { background: rgba(224, 90, 90, 0.12); color: var(--danger); padding: 10px 14px; border-radius: 6px; font-family: var(--mono); font-size: 12px; margin: 12px 0; }
+</style>

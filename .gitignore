@@ -22,6 +22,11 @@ dist/
 .env
 .env.local
 
+# Svelte app build output (kept out of git; produced by `npm run build`)
+app/node_modules/
+app/dist/
+app/.svelte-kit/
+
 # Supabase CLI cache
 backend/supabase/.temp/
 backend/supabase/.branches/
