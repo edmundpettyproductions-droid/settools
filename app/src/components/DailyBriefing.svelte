@@ -187,6 +187,7 @@
               <a href={`https://www.openstreetmap.org/?mlat=${geocodeResult.latitude}&mlon=${geocodeResult.longitude}&zoom=14`} target="_blank" rel="noopener">
                 verify on map ({geocodeResult.latitude.toFixed(3)}, {geocodeResult.longitude.toFixed(3)})
               </a>
+              <span class="attr"> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></span>
             </div>
           {/if}
           <button class="text-btn" onclick={beginOverrideEdit}>
@@ -339,6 +340,7 @@
   .weather-detail.small { font-size: 10.5px; margin-top: 2px; }
   .weather-detail.small a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
   .weather-detail.small a:hover { color: var(--accent); }
+  .weather-detail .attr { color: var(--text3); opacity: 0.7; }
 
   .text-btn { background: none; border: none; color: var(--accent); font-family: var(--mono); font-size: 11px; padding: 4px 0; margin-top: 6px; margin-right: 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
   .text-btn:hover { color: var(--accent2); }
