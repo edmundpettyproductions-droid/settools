@@ -36,7 +36,10 @@ export async function geocode(query: string): Promise<GeocodeResult | null> {
 
 /** Generate candidate query strings for a location, best-bet first.
  *  Call sheets typically read "LOCATION NAME, 123 STREET, CITY, ST 90210".
- *  The location name often won't geocode, but the address tail will.
+ *  The location name often doesn't geocode (made-up venue names), but the
+ *  address tail does. Candidates with fewer than 6 chars are dropped to
+ *  avoid producing useless queries like "CA" that fuzzy-match places in
+ *  random countries.
  */
 export function extractAddressCandidates(loc: string): string[] {
   const out: string[] = [];
@@ -44,44 +47,52 @@ export function extractAddressCandidates(loc: string): string[] {
   const add = (s: string | undefined) => {
     if (!s) return;
     const clean = s.trim().replace(/^[,\s\-—()]+|[,\s\-—()]+$/g, '').trim();
-    if (clean && !seen.has(clean)) { seen.add(clean); out.push(clean); }
+    // Min length 6: avoids "CA", "NY 11", and other ambiguous shrapnel
+    // that geocoders happily match to wrong places (e.g. "CA" → Central Java).
+    if (clean && clean.length >= 6 && !seen.has(clean)) {
+      seen.add(clean);
+      out.push(clean);
+    }
   };
 
-  // 1. ZIP code anchor — most reliable. Grab from last separator-before-ZIP
-  //    through end of ZIP. Handles "STAGE 14, 123 Main, LA, CA 90001".
-  const zip = /\b(\d{5}(?:-\d{4})?)\b/.exec(loc);
-  if (zip) {
-    const zipEnd = zip.index + zip[0].length;
-    const before = loc.substring(0, zip.index);
-    const sepIdx = Math.max(
-      before.lastIndexOf(','),
-      before.lastIndexOf(' - '),
-      before.lastIndexOf('('),
-      before.lastIndexOf('\n'),
-    );
-    add(loc.substring(sepIdx >= 0 ? sepIdx + 1 : 0, zipEnd));
-  }
-
-  // 2. State abbreviation — for addresses without an explicit ZIP.
-  const STATES = '(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)';
-  const stateRe = new RegExp(`\\b${STATES}\\b`);
-  const stateMatch = stateRe.exec(loc);
-  if (stateMatch) {
-    const before = loc.substring(0, stateMatch.index);
-    const sepIdx = Math.max(before.lastIndexOf(','), before.lastIndexOf(' - '), before.lastIndexOf('('));
-    add(loc.substring(sepIdx >= 0 ? sepIdx + 1 : 0, stateMatch.index + stateMatch[0].length));
-  }
-
-  // 3. Text inside parentheses if it has digits — "STAGE 14 (123 Main St)".
+  // 1. Inside parentheses with digits — cleanest extraction when present.
+  //    "GRAYSTONE MANSION (905 Loma Vista Dr, Beverly Hills, CA 90210)"
+  //    → "905 Loma Vista Dr, Beverly Hills, CA 90210"
   const parens = /\(([^)]+)\)/.exec(loc);
   if (parens && parens[1] && /\d/.test(parens[1])) add(parens[1]);
 
-  // 4. Everything after the first comma or dash — broad heuristic.
-  const sep = /[,\-—]\s*(.+)/.exec(loc);
-  if (sep && sep[1]) add(sep[1]);
+  // 2. After the FIRST comma — drops the friendly location name in the
+  //    typical "STAGE 14, 123 Main St, Burbank, CA 91505" pattern.
+  //    → "123 Main St, Burbank, CA 91505"
+  const firstComma = loc.indexOf(',');
+  if (firstComma >= 0 && firstComma < loc.length - 1) {
+    add(loc.substring(firstComma + 1));
+  }
 
-  // 5. Last resort: the original string.
+  // 3. After the first dash-with-spaces — same idea for "STAGE 14 - 123 Main…".
+  const dashMatch = / [-—] (.+)/.exec(loc);
+  if (dashMatch && dashMatch[1]) add(dashMatch[1]);
+
+  // 4. Whole string — fallback for clean inputs like "123 Main St, LA, CA".
   add(loc);
+
+  // 5. ZIP-anchored substring — last resort. Goes back at least TWO commas
+  //    so we always include city + state + ZIP, not just " CA 91505".
+  const zip = /\b(\d{5}(?:-\d{4})?)\b/.exec(loc);
+  if (zip) {
+    const before = loc.substring(0, zip.index);
+    const commas: number[] = [];
+    for (let i = 0; i < before.length; i++) {
+      if (before[i] === ',') commas.push(i);
+    }
+    // Need at least 2 commas to produce "Street, City, State ZIP"
+    if (commas.length >= 2) {
+      const startIdx = commas[commas.length - 2];
+      if (startIdx !== undefined) {
+        add(loc.substring(startIdx + 1, zip.index + zip[0].length));
+      }
+    }
+  }
 
   return out;
 }
