@@ -134,6 +134,62 @@ export interface ContactFieldValue {
   value: string;
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// Quick Notes — fast on-set jot pad for director's notes, observations, etc.
+// ──────────────────────────────────────────────────────────────────────────
+
+export type NoteCategory = 'director' | 'continuity' | 'production' | 'general';
+
+export interface NoteEntry {
+  id: string;           // stable id (timestamp + random)
+  text: string;         // body of the note
+  category: NoteCategory;
+  created_at: string;   // ISO datetime
+  scene?: string;       // optional scene number tag ("42A")
+  person?: string;      // optional related contact name (links to Contacts)
+  pinned?: boolean;
+}
+
+export interface NotesState {
+  notes: NoteEntry[];
+  last_updated?: string;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Issue Tracker — talent late, equipment problem, wardrobe delay, etc.
+// ──────────────────────────────────────────────────────────────────────────
+
+export type IssueStatus = 'open' | 'in_progress' | 'resolved';
+export type IssueType =
+  | 'talent_late'
+  | 'equipment'
+  | 'wardrobe'
+  | 'makeup_hair'
+  | 'location'
+  | 'script'
+  | 'safety'
+  | 'transportation'
+  | 'catering'
+  | 'other';
+
+export interface IssueEntry {
+  id: string;
+  type: IssueType;
+  description: string;
+  status: IssueStatus;
+  created_at: string;
+  resolved_at?: string;
+  scene?: string;
+  person?: string;             // contact name for who's affected
+  department?: string;         // dept tag (Camera, Wardrobe, etc.)
+  resolution_note?: string;    // free text when marked resolved
+}
+
+export interface IssuesState {
+  issues: IssueEntry[];
+  last_updated?: string;
+}
+
 /** A DOOD appearance — this person is scheduled in a department's DOOD on these days. */
 export interface DoodAppearance {
   department: string;        // "Cast", "Wardrobe", "Stunts", "MU/Hair", "Vehicle", etc.

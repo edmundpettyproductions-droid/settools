@@ -5,8 +5,13 @@
   import GlobalResources from './components/GlobalResources.svelte';
   import CastBible from './components/CastBible.svelte';
   import Contacts from './components/Contacts.svelte';
+  import Notes from './components/Notes.svelte';
+  import Issues from './components/Issues.svelte';
+  import * as issuesLib from './lib/issues';
 
-  type Tab = 'tomorrow' | 'resources' | 'cast-bible' | 'contacts';
+  type Tab = 'tomorrow' | 'resources' | 'cast-bible' | 'contacts' | 'notes' | 'issues';
+
+  const ALL_TABS: Tab[] = ['tomorrow', 'contacts', 'notes', 'issues', 'cast-bible', 'resources'];
 
   let hasWorkspace = $state(false);
   let workspaceCode = $state<string | null>(null);
@@ -14,14 +19,15 @@
   let creating = $state(false);
   let err = $state<string | null>(null);
   let tab = $state<Tab>('tomorrow');
+  let issueOpenCount = $state(0);
 
   // Restore last-active tab from sessionStorage (per-tab, not synced)
   onMount(async () => {
     const saved = sessionStorage.getItem('st_app_tab') as Tab | null;
-    if (saved === 'tomorrow' || saved === 'resources' || saved === 'cast-bible' || saved === 'contacts') tab = saved;
-    // Allow deep-linking to a tab via the URL hash, e.g. /tomorrow/#contacts
+    if (saved && (ALL_TABS as readonly string[]).includes(saved)) tab = saved;
+    // Allow deep-linking to a tab via the URL hash
     const h = location.hash.replace('#', '');
-    if (h === 'tomorrow' || h === 'resources' || h === 'cast-bible' || h === 'contacts') tab = h;
+    if ((ALL_TABS as readonly string[]).includes(h)) tab = h as Tab;
     try {
       const s = await sync.init();
       hasWorkspace = s.hasWorkspace;
@@ -29,7 +35,16 @@
     } catch (e) {
       err = e instanceof Error ? e.message : String(e);
     }
+    refreshIssueCount();
+    sync.subscribe((keys) => {
+      if (keys.includes('settools_issues')) refreshIssueCount();
+    });
   });
+
+  function refreshIssueCount() {
+    const c = issuesLib.counts();
+    issueOpenCount = c.open + c.in_progress;
+  }
 
   $effect(() => { sessionStorage.setItem('st_app_tab', tab); });
 
@@ -78,6 +93,10 @@
       <div class="tabs">
         <button class:active={tab === 'tomorrow'} onclick={() => tab = 'tomorrow'}>🌅 Tomorrow</button>
         <button class:active={tab === 'contacts'} onclick={() => tab = 'contacts'}>📞 Contacts</button>
+        <button class:active={tab === 'notes'} onclick={() => tab = 'notes'}>📝 Notes</button>
+        <button class:active={tab === 'issues'} onclick={() => tab = 'issues'}>
+          ⚠ Issues{#if issueOpenCount > 0}<span class="badge">{issueOpenCount}</span>{/if}
+        </button>
         <button class:active={tab === 'cast-bible'} onclick={() => tab = 'cast-bible'}>🎭 Cast Bible</button>
         <button class:active={tab === 'resources'} onclick={() => tab = 'resources'}>📁 Resources</button>
       </div>
@@ -89,6 +108,10 @@
     <DailyBriefing />
   {:else if tab === 'contacts'}
     <Contacts />
+  {:else if tab === 'notes'}
+    <Notes />
+  {:else if tab === 'issues'}
+    <Issues />
   {:else if tab === 'cast-bible'}
     <CastBible />
   {:else}
@@ -118,6 +141,19 @@
   .tabs button { background: none; border: 1px solid transparent; color: var(--text2); font-family: var(--font); font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all .12s; }
   .tabs button:hover { color: var(--text); background: var(--bg3); }
   .tabs button.active { color: var(--accent); background: rgba(167, 139, 250, 0.13); border-color: rgba(167, 139, 250, 0.35); }
+  .tabs .badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    background: var(--warn);
+    color: var(--bg);
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 16px;
+    text-align: center;
+  }
   .home-link { font-family: var(--mono); font-size: 11px; color: var(--text2); text-decoration: none; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; transition: all .12s; white-space: nowrap; }
   .home-link:hover { color: var(--accent); border-color: var(--accent); }
 

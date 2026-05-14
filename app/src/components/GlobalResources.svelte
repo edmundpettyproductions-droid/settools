@@ -131,10 +131,37 @@
     },
     {
       key: '__contacts__', label: 'Contacts (merged view)', icon: '📞', type: 'cast',
-      description: 'Unified directory of everyone in this workspace — cast, crew, agents, guardians — merged across Call Sheet, Cast Bible, and Next Day Prep. One-tap to call, text, or email from any device.',
+      description: 'Unified directory of everyone in this workspace — cast, crew, agents, guardians — merged across Call Sheet, Cast Bible, and Next Day Prep. One-tap to call, text, or email from any device. Shows DOOD coverage and cross-source conflicts.',
       toolPath: '/tomorrow/', toolHash: '#contacts',
-      uploadHash: null,  // populated automatically from other sources
+      uploadHash: null,
       summarize: () => 'Auto-populated from all contact sources',
+    },
+    {
+      key: 'settools_notes', label: 'Quick Notes', icon: '📝', type: 'other',
+      description: 'On-set jot pad. Tag with scene, person, or category (Director, Continuity, Production, General). Searchable, pinnable, exportable as plain text for production reports.',
+      toolPath: '/tomorrow/', toolHash: '#notes',
+      uploadHash: null,
+      summarize: (raw) => {
+        try {
+          const v = JSON.parse(raw) as { notes?: unknown[] };
+          const n = v.notes?.length ?? 0;
+          return `${n} note${n === 1 ? '' : 's'}`;
+        } catch { return '—'; }
+      },
+    },
+    {
+      key: 'settools_issues', label: 'Issue Tracker', icon: '⚠', type: 'other',
+      description: 'Log talent late / equipment / wardrobe / safety issues with one tap. Track status (open / in progress / resolved), affected person, department, scene. Cross-linked in Contacts.',
+      toolPath: '/tomorrow/', toolHash: '#issues',
+      uploadHash: null,
+      summarize: (raw) => {
+        try {
+          const v = JSON.parse(raw) as { issues?: Array<{ status?: string }> };
+          const arr = v.issues ?? [];
+          const open = arr.filter((i) => i.status !== 'resolved').length;
+          return `${arr.length} total · ${open} active`;
+        } catch { return '—'; }
+      },
     },
     {
       key: 'settools_cast_bible', label: 'Cast Bible', icon: '🎭', type: 'cast',
@@ -166,8 +193,8 @@
       },
     },
     {
-      key: 'ST_signin', label: 'Sign-In Records', icon: '✍', type: 'signin',
-      description: 'Touchscreen sign-in events with signature capture. Kiosk-only — no upload.',
+      key: 'ST_signin', label: 'Cast Sign-In Records', icon: '✍', type: 'signin',
+      description: 'Touchscreen Cast Sign-In events with signature capture. Cast roster auto-pulls from Bible / Call Sheet / Next Day.',
       toolPath: '/sign-in.html', toolHash: '', uploadHash: null,
       summarize: (raw) => {
         try {

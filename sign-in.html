@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14b8a6">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
-<title>Sign-In Station · Set Tools</title>
+<title>Cast Sign-In · Set Tools</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <style>
@@ -107,7 +107,7 @@ inp:focus{border-color:var(--accent)}
 <body>
 
 <div id="hdr">
-  <div id="hdr-title">✎ Sign-In Station</div>
+  <div id="hdr-title">✎ Cast Sign-In</div>
   <div id="hdr-info">No cast loaded</div>
   <div style="display:flex;gap:7px;margin-left:auto">
     <button class="btn btn-ghost" onclick="openRecords()">📋 Records</button>
@@ -117,7 +117,7 @@ inp:focus{border-color:var(--accent)}
 </div>
 
 <div id="empty-state">
-  <h2>Sign-In Station</h2>
+  <h2>Cast Sign-In</h2>
   <p>No cast loaded for today. Open Setup to enter the cast list, or pull automatically from the active Crew Tracker session.</p>
   <button class="btn btn-teal" onclick="openSetup()">⚙ Open Setup</button>
 </div>
@@ -179,7 +179,7 @@ inp:focus{border-color:var(--accent)}
     <div style="border-top:1px solid var(--border);padding-top:14px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:10px">Station Messages</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div><lbl>Station Title</lbl><input class="inp" type="text" id="su-title" placeholder="Sign-In Station"></div>
+        <div><lbl>Station Title</lbl><input class="inp" type="text" id="su-title" placeholder="Cast Sign-In"></div>
         <div><lbl>Custom Note (shown after confirmation)</lbl><input class="inp" type="text" id="su-note" placeholder="e.g. Please see the 2nd AD"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr;gap:10px">
@@ -220,8 +220,8 @@ inp:focus{border-color:var(--accent)}
 <script>
 (function(){
 
-var SS = JSON.parse(localStorage.getItem('ST_signin') || '{"cast":[],"records":[],"show":"","date":"","settings":{"stationTitle":"Sign-In Station","sigPrompt":"Please sign below to confirm your arrival","confirmMsg":"Thank you! Have a great shoot.","signoutMsg":"Have a great rest of your day!","customNote":""}}');
-if(!SS.settings) SS.settings={stationTitle:'Sign-In Station',sigPrompt:'Please sign below to confirm your arrival',confirmMsg:'Thank you! Have a great shoot.',signoutMsg:'Have a great rest of your day!',customNote:''};
+var SS = JSON.parse(localStorage.getItem('ST_signin') || '{"cast":[],"records":[],"show":"","date":"","settings":{"stationTitle":"Cast Sign-In","sigPrompt":"Please sign below to confirm your arrival","confirmMsg":"Thank you! Have a great shoot.","signoutMsg":"Have a great rest of your day!","customNote":""}}');
+if(!SS.settings) SS.settings={stationTitle:'Cast Sign-In',sigPrompt:'Please sign below to confirm your arrival',confirmMsg:'Thank you! Have a great shoot.',signoutMsg:'Have a great rest of your day!',customNote:''};
 function save(){ localStorage.setItem('ST_signin', JSON.stringify(SS)); }
 
 function fmt12(t){
@@ -248,7 +248,7 @@ function renderGrid(){
   gv.style.gridTemplateColumns='repeat('+cols+',1fr)';
   gv.style.gridTemplateRows='repeat('+rows+',1fr)';
   var signed=SS.records.length;
-  document.getElementById('hdr-title').textContent=SS.settings.stationTitle||'Sign-In Station';
+  document.getElementById('hdr-title').textContent=SS.settings.stationTitle||'Cast Sign-In';
   document.getElementById('hdr-info').textContent=(SS.show||'Set Tools')+' · '+(SS.date||'')+' · '+signed+'/'+cast.length+' signed in';
   gv.innerHTML='';
   cast.forEach(function(c){
@@ -417,16 +417,89 @@ window.addEntry=function(){
   if(rows.length) rows[rows.length-1].querySelector('input').focus();
 };
 window.pullFromTracker=function(){
-  try{
-    var ct=JSON.parse(localStorage.getItem('st-s')||'{}');
-    if(!ct.cast||!ct.cast.length){ alert('No cast found in Crew Tracker. Load a call sheet there first.'); return; }
-    SS.cast=ct.cast.filter(function(c){ return c.name; }).map(function(c){
-      return{name:c.name, role:c.role||'', callTime:c.callTime||c.onSetTime||''};
+  // Pull from every known cast source. Merges by name, prefers richer data.
+  // Sources tried in priority order:
+  //   1. settools_cast_bible  (richest — full contact + character info)
+  //   2. settools_cast        (call-sheet derived — has call times)
+  //   3. ST_nextday.contacts  (next-day prep — may have tomorrow's lineup)
+  //   4. st-s                 (legacy format, kept for backwards compat)
+  var cast = [];
+  var seen = {};
+  var sources = [];
+
+  function add(name, role, callTime, sourceLabel) {
+    if (!name) return;
+    name = String(name).trim();
+    if (!name) return;
+    var key = name.toLowerCase();
+    if (seen[key]) {
+      // Already have it — fill in missing fields from this source if useful.
+      var existing = seen[key];
+      if (!existing.callTime && callTime) existing.callTime = String(callTime).trim();
+      if (!existing.role && role) existing.role = String(role).trim();
+      return;
+    }
+    var entry = { name: name, role: role ? String(role).trim() : '', callTime: callTime ? String(callTime).trim() : '' };
+    seen[key] = entry;
+    cast.push(entry);
+    if (sources.indexOf(sourceLabel) === -1) sources.push(sourceLabel);
+  }
+
+  // 1) Cast Bible — richest source.
+  try {
+    var cb = JSON.parse(localStorage.getItem('settools_cast_bible') || '{}');
+    (cb.entries || []).forEach(function(e){ add(e.actor, e.character || e.role, '', 'Cast Bible'); });
+  } catch(e){}
+
+  // 2) Call-sheet-derived cast — has call times.
+  try {
+    var ct = JSON.parse(localStorage.getItem('settools_cast') || '{}');
+    var people = ct.people || ct.rows || [];
+    people.forEach(function(c){ add(c.name || c.actor || c.talent, c.role || c.character, c.callTime || c.onSetTime, 'Call Sheet'); });
+  } catch(e){}
+
+  // 3) Next-day prep contacts (cast only).
+  try {
+    var nd = JSON.parse(localStorage.getItem('ST_nextday') || '{}');
+    (nd.contacts || []).forEach(function(c){
+      if (c.isCast === true || c.role === 'cast' || (c.role && /cast/i.test(c.role))) {
+        add(c.name, c.role, '', 'Next Day Prep');
+      }
     });
-    if(ct.prod&&ct.prod.date&&!document.getElementById('su-date').value) document.getElementById('su-date').value=ct.prod.date;
-    if(ct.prod&&ct.prod.title&&!document.getElementById('su-show').value) document.getElementById('su-show').value=ct.prod.title;
-    renderEntries();
-  }catch(e){ alert('Could not read Crew Tracker data.'); }
+  } catch(e){}
+
+  // 4) Legacy st-s shape (older Set Tools data).
+  try {
+    var ss = JSON.parse(localStorage.getItem('st-s') || '{}');
+    (ss.cast || []).forEach(function(c){ add(c.name, c.role, c.callTime || c.onSetTime, 'legacy'); });
+    if (ss.prod) {
+      if (ss.prod.date && !document.getElementById('su-date').value) document.getElementById('su-date').value=ss.prod.date;
+      if (ss.prod.title && !document.getElementById('su-show').value) document.getElementById('su-show').value=ss.prod.title;
+    }
+  } catch(e){}
+
+  // Also pull production title from the Universal Header if present.
+  try {
+    var uh = JSON.parse(localStorage.getItem('settools_uh') || '{}');
+    if (uh.production && !document.getElementById('su-show').value) {
+      document.getElementById('su-show').value = uh.production;
+    }
+  } catch(e){}
+
+  if (!cast.length) {
+    alert('No cast found in any source.\n\nUpload a call sheet (Crew Tracker) or a cast bible (Cast Bible tab) first. Both auto-sync from any device in this workspace.');
+    return;
+  }
+
+  SS.cast = cast;
+  renderEntries();
+  // Brief confirmation so the user sees what worked.
+  var btn = document.querySelector('[onclick="pullFromTracker()"]');
+  if (btn) {
+    var orig = btn.textContent;
+    btn.textContent = '✓ Loaded ' + cast.length + ' from ' + sources.join(' + ');
+    setTimeout(function(){ btn.textContent = orig; }, 3000);
+  }
 };
 window.parsePaste=function(){
   var text=document.getElementById('paste-area').value.trim();
@@ -441,7 +514,7 @@ window.parsePaste=function(){
 window.saveSetup=function(){
   SS.show=document.getElementById('su-show').value.trim();
   SS.date=document.getElementById('su-date').value.trim();
-  SS.settings.stationTitle=document.getElementById('su-title').value.trim()||'Sign-In Station';
+  SS.settings.stationTitle=document.getElementById('su-title').value.trim()||'Cast Sign-In';
   SS.settings.customNote=document.getElementById('su-note').value.trim();
   SS.settings.sigPrompt=document.getElementById('su-sigprompt').value.trim()||'Please sign below to confirm your arrival';
   SS.settings.confirmMsg=document.getElementById('su-confirmmsg').value.trim()||'Thank you! Have a great shoot.';
@@ -515,7 +588,7 @@ window.exportPDF=function(){
         '</tr>';
     }).join('')+
     '</tbody></table>'+
-    '<div style="margin-top:20px;font-size:10px;color:#aaa">Generated '+new Date().toLocaleString()+' · Set Tools Sign-In Station</div>'+
+    '<div style="margin-top:20px;font-size:10px;color:#aaa">Generated '+new Date().toLocaleString()+' · Set Tools Cast Sign-In</div>'+
     '<script>window.onload=function(){window.print();}<\/script>'+
     '</body></html>';
   var win=window.open('','_blank');

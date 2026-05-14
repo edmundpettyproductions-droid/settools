@@ -2,7 +2,9 @@
   import { onMount } from 'svelte';
   import * as sync from '../lib/sync';
   import * as contacts from '../lib/contacts';
-  import type { UnifiedContact } from '../lib/types';
+  import * as issuesLib from '../lib/issues';
+  import * as notesLib from '../lib/notes';
+  import type { UnifiedContact, IssueEntry, NoteEntry } from '../lib/types';
 
   type FilterTag = 'all' | 'cast' | 'crew' | 'phone' | 'email' | 'agent' | 'conflicts' | 'dood';
 
@@ -19,13 +21,24 @@
   onMount(() => {
     refresh();
     const unsub = sync.subscribe((keys) => {
-      // Re-merge if any contact-bearing key (incl. DOOD) changed
-      if (keys.some((k) => /^(settools_(cast|crew|cast_bible|dood)|ST_nextday)$/.test(k))) {
+      // Re-merge if any contact-bearing or related key changed
+      if (keys.some((k) => /^(settools_(cast|crew|cast_bible|dood|issues|notes)|ST_nextday)$/.test(k))) {
         refresh();
       }
     });
     return () => unsub();
   });
+
+  // ── Issue / Note lookups for a given contact (used in expanded view) ──────
+  function issuesFor(name: string): IssueEntry[] {
+    return issuesLib.issuesForPerson(name);
+  }
+  function notesFor(name: string): NoteEntry[] {
+    return notesLib.notesForPerson(name);
+  }
+  function openIssueCountFor(name: string): number {
+    return issuesFor(name).filter((i) => i.status !== 'resolved').length;
+  }
 
   // ── Derived ───────────────────────────────────────────────────────────────
   let counts = $derived(contacts.stats(allContacts));
@@ -141,6 +154,9 @@
                 {#if c.status}<span class="status status-{c.status.toLowerCase()}">{c.status}</span>{/if}
                 {#if c.conflicts && c.conflicts.length}
                   <span class="conflict-badge" title="Has {c.conflicts.length} source conflict{c.conflicts.length === 1 ? '' : 's'}">⚠ {c.conflicts.length}</span>
+                {/if}
+                {#if openIssueCountFor(c.name) > 0}
+                  <span class="issue-badge" title="{openIssueCountFor(c.name)} open issue{openIssueCountFor(c.name) === 1 ? '' : 's'}">⚠ {openIssueCountFor(c.name)} open</span>
                 {/if}
               </div>
               <div class="secondary">
@@ -274,6 +290,33 @@
               {#if c.notes}
                 <div class="detail-row"><span class="d-k">Notes</span><span class="d-v">{c.notes}</span></div>
               {/if}
+              {#if issuesFor(c.name).length}
+                <div class="detail-section">
+                  <div class="d-section-title">Recent Issues</div>
+                  {#each issuesFor(c.name).slice(0, 5) as iss (iss.id)}
+                    <div class="detail-row issue-link" class:resolved={iss.status === 'resolved'}>
+                      <span class="d-k">{issuesLib.TYPE_LABELS[iss.type].icon} {issuesLib.relativeTime(iss.created_at)}</span>
+                      <span class="d-v">
+                        {iss.description}
+                        <span class="issue-status status-{iss.status}">{issuesLib.STATUS_LABELS[iss.status]}</span>
+                      </span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+
+              {#if notesFor(c.name).length}
+                <div class="detail-section">
+                  <div class="d-section-title">Recent Notes</div>
+                  {#each notesFor(c.name).slice(0, 5) as note (note.id)}
+                    <div class="detail-row">
+                      <span class="d-k">{notesLib.CATEGORY_LABELS[note.category]} · {issuesLib.relativeTime(note.created_at)}</span>
+                      <span class="d-v">{note.text}</span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+
               <div class="detail-row sources">
                 <span class="d-k">Source{c.sources.length === 1 ? '' : 's'}</span>
                 <span class="d-v">
@@ -363,6 +406,22 @@
     border: 1px solid rgba(240,160,64,0.45);
     cursor: help;
   }
+  .issue-badge {
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 3px; letter-spacing: 0.05em;
+    background: rgba(224,90,90,0.15); color: var(--danger);
+    border: 1px solid rgba(224,90,90,0.4);
+  }
+  .issue-link { padding: 6px 0; }
+  .issue-link.resolved { opacity: 0.55; }
+  .issue-status {
+    font-family: var(--mono); font-size: 9px; font-weight: 700;
+    padding: 1px 5px; border-radius: 3px; letter-spacing: 0.05em;
+    margin-left: 8px; text-transform: uppercase;
+  }
+  .issue-status.status-open        { background: rgba(240,160,64,0.13); color: var(--warn); }
+  .issue-status.status-in_progress { background: rgba(167,139,250,0.13); color: var(--accent); }
+  .issue-status.status-resolved    { background: rgba(52,211,153,0.13); color: var(--success); }
 
   .dood-summary { color: var(--text3); margin-left: 4px; }
 
