@@ -2,14 +2,21 @@
   import { onMount } from 'svelte';
   import * as sync from './lib/sync';
   import DailyBriefing from './components/DailyBriefing.svelte';
+  import GlobalResources from './components/GlobalResources.svelte';
+
+  type Tab = 'tomorrow' | 'resources';
 
   let hasWorkspace = $state(false);
   let workspaceCode = $state<string | null>(null);
   let joining = $state(false);
   let creating = $state(false);
   let err = $state<string | null>(null);
+  let tab = $state<Tab>('tomorrow');
 
+  // Restore last-active tab from sessionStorage (per-tab, not synced)
   onMount(async () => {
+    const saved = sessionStorage.getItem('st_app_tab') as Tab | null;
+    if (saved === 'tomorrow' || saved === 'resources') tab = saved;
     try {
       const s = await sync.init();
       hasWorkspace = s.hasWorkspace;
@@ -18,6 +25,8 @@
       err = e instanceof Error ? e.message : String(e);
     }
   });
+
+  $effect(() => { sessionStorage.setItem('st_app_tab', tab); });
 
   async function create() {
     const name = prompt('Workspace name (e.g. production title):', 'My Production');
@@ -29,9 +38,7 @@
       hasWorkspace = true;
     } catch (e) {
       err = e instanceof Error ? e.message : String(e);
-    } finally {
-      creating = false;
-    }
+    } finally { creating = false; }
   }
 
   async function join() {
@@ -44,16 +51,14 @@
       hasWorkspace = true;
     } catch (e) {
       err = e instanceof Error ? e.message : String(e);
-    } finally {
-      joining = false;
-    }
+    } finally { joining = false; }
   }
 </script>
 
 {#if !hasWorkspace}
   <div class="onboard">
-    <h1>Tomorrow's Briefing</h1>
-    <p>Join your production workspace to see tomorrow's logistics, weather, and counts.</p>
+    <h1>Set Tools — Tomorrow + Resources</h1>
+    <p>Join your production workspace to see tomorrow's logistics, weather, and your global resource files.</p>
     {#if err}<div class="err">{err}</div>{/if}
     <div class="actions">
       <button onclick={create} disabled={creating}>{creating ? 'Creating…' : 'Create New Workspace'}</button>
@@ -62,7 +67,22 @@
     <p class="hint">If you already created a workspace on the main machine, click <strong>Join</strong> and enter that 6-character code.</p>
   </div>
 {:else}
-  <DailyBriefing />
+  <header class="topnav" role="navigation">
+    <div class="topnav-inner">
+      <div class="brand">Set Tools <span class="ws">· {workspaceCode}</span></div>
+      <div class="tabs">
+        <button class:active={tab === 'tomorrow'} onclick={() => tab = 'tomorrow'}>🌅 Tomorrow</button>
+        <button class:active={tab === 'resources'} onclick={() => tab = 'resources'}>📁 Resources</button>
+      </div>
+      <a class="home-link" href="/index.html">← Set Tools home</a>
+    </div>
+  </header>
+
+  {#if tab === 'tomorrow'}
+    <DailyBriefing />
+  {:else}
+    <GlobalResources />
+  {/if}
 {/if}
 
 <style>
@@ -77,4 +97,22 @@
   .actions button.ghost:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
   .actions button:disabled { opacity: 0.5; cursor: not-allowed; }
   .err { background: rgba(224, 90, 90, 0.12); color: var(--danger); padding: 10px 14px; border-radius: 6px; font-family: var(--mono); font-size: 12px; margin: 12px 0; }
+
+  /* Top nav */
+  .topnav { position: sticky; top: 0; z-index: 100; background: var(--bg2); border-bottom: 1px solid var(--border); }
+  .topnav-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; gap: 14px; height: 52px; }
+  .brand { font-family: var(--cond); font-size: 16px; font-weight: 700; letter-spacing: 0.06em; color: var(--accent); text-transform: uppercase; }
+  .brand .ws { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-left: 6px; letter-spacing: 0.05em; font-weight: 500; }
+  .tabs { display: flex; gap: 4px; margin-left: 20px; flex: 1; }
+  .tabs button { background: none; border: 1px solid transparent; color: var(--text2); font-family: var(--font); font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all .12s; }
+  .tabs button:hover { color: var(--text); background: var(--bg3); }
+  .tabs button.active { color: var(--accent); background: rgba(167, 139, 250, 0.13); border-color: rgba(167, 139, 250, 0.35); }
+  .home-link { font-family: var(--mono); font-size: 11px; color: var(--text2); text-decoration: none; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; transition: all .12s; white-space: nowrap; }
+  .home-link:hover { color: var(--accent); border-color: var(--accent); }
+
+  @media (max-width: 640px) {
+    .topnav-inner { flex-wrap: wrap; height: auto; padding: 8px 14px; }
+    .tabs { margin-left: 0; }
+    .home-link { font-size: 10px; padding: 4px 8px; }
+  }
 </style>

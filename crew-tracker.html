@@ -845,18 +845,13 @@ function parseJSON(raw,label){
   console.warn(label+' parse fail:',raw.substring(0,300));return[];
 }
 
-// ── NTP TIME SYNC ──
+// ── TIME ──
+// worldtimeapi.org NTP sync removed: the service is unreliable and was
+// spamming the console with ERR_CONNECTION_RESET. Browser clocks are
+// accurate enough for on-set use; if drift becomes a real problem we
+// can swap in a working time API.
 var timeOffset=0;
 function accurateNow(){return new Date(Date.now()+timeOffset);}
-(function syncTime(){
-  var t0=Date.now(),done=false;
-  function applyOffset(sms){if(done)return;done=true;timeOffset=sms+Math.round((Date.now()-t0)/2)-Date.now();}
-  var xhr=new XMLHttpRequest();xhr.timeout=3000;
-  xhr.open('GET','https://worldtimeapi.org/api/ip');
-  xhr.onload=function(){try{var d=JSON.parse(xhr.responseText);applyOffset(new Date(d.datetime).getTime());}catch(e){}};
-  xhr.send();
-  setTimeout(syncTime,10*60*1000);
-})();
 
 function parseTime(s){
   var t=normTime(s),p=t.split(':');if(p.length<2)return null;
