@@ -4,7 +4,7 @@
   import * as data from '../lib/data';
   import { smartGeocode, getForecast, wmoLabel, fmtTime12 } from '../lib/weather';
   import { googleMapsUrl, appleMapsUrl, nearestHospitalUrl } from '../lib/url';
-  import type { DailyForecast, UHState, PTProject, PTDay, PersonCounts } from '../lib/types';
+  import type { DailyForecast, UHState, PTProject, PTDay, PersonCounts, GeocodeResult } from '../lib/types';
 
   // ── Reactive state (Svelte 5 runes) ───────────────────────────────────────
   let uh         = $state<UHState>({});
@@ -16,6 +16,7 @@
 
   // Address resolution
   let usedQuery       = $state<string>('');     // what we successfully geocoded
+  let geocodeResult   = $state<GeocodeResult | null>(null);  // what came back from the API
   let geocodeErr      = $state<string | null>(null);
   let forecastOverride = $state<string>('');    // user-supplied override address
   let overrideEdit    = $state<string>('');     // text being typed in override input
@@ -54,6 +55,7 @@
     geocodeErr = null;
     forecast = null;
     usedQuery = '';
+    geocodeResult = null;
     try {
       const g = await smartGeocode(loc);
       if (!g) {
@@ -61,12 +63,21 @@
         return;
       }
       usedQuery = g.usedQuery;
+      geocodeResult = g.result;
       const f = await getForecast(g.result.latitude, g.result.longitude, 3);
       forecast = f[1] ?? f[0] ?? null;  // [1] = tomorrow
     } catch (e) {
       geocodeErr = e instanceof Error ? e.message : String(e);
     }
   }
+
+  // Human label for what we actually geocoded to. Lets the user spot a
+  // wrong-place match (e.g., "Sunset Blvd" → a town in Australia).
+  let resolvedLabel = $derived(() => {
+    if (!geocodeResult) return '';
+    const parts = [geocodeResult.name, geocodeResult.admin1, geocodeResult.country].filter(Boolean);
+    return parts.join(', ');
+  });
 
   $effect(() => {
     if (effectiveAddress) loadForecast();
@@ -170,9 +181,16 @@
           {#if forecast.precipitationProb != null}
             <div class="weather-detail">Precip {forecast.precipitationProb}% chance</div>
           {/if}
-          <div class="weather-detail dim">Forecasting for: {usedQuery}</div>
+          <div class="weather-detail dim">Forecasting for: <strong>{resolvedLabel()}</strong></div>
+          {#if geocodeResult}
+            <div class="weather-detail dim small">
+              <a href={`https://www.openstreetmap.org/?mlat=${geocodeResult.latitude}&mlon=${geocodeResult.longitude}&zoom=14`} target="_blank" rel="noopener">
+                verify on map ({geocodeResult.latitude.toFixed(3)}, {geocodeResult.longitude.toFixed(3)})
+              </a>
+            </div>
+          {/if}
           <button class="text-btn" onclick={beginOverrideEdit}>
-            {forecastOverride ? 'Change override' : 'Override address'}
+            {forecastOverride ? 'Change override' : 'Wrong place? Override'}
           </button>
           {#if forecastOverride}
             <button class="text-btn dim" onclick={resetOverride}>Reset to call sheet</button>
@@ -317,6 +335,10 @@
   .condition { font-size: 16px; color: var(--text2); font-weight: 500; }
   .weather-detail { font-size: 12px; color: var(--text2); margin-top: 8px; }
   .weather-detail.dim { color: var(--text3); font-style: italic; word-break: break-word; }
+  .weather-detail.dim strong { color: var(--text2); font-style: normal; font-weight: 600; }
+  .weather-detail.small { font-size: 10.5px; margin-top: 2px; }
+  .weather-detail.small a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+  .weather-detail.small a:hover { color: var(--accent); }
 
   .text-btn { background: none; border: none; color: var(--accent); font-family: var(--mono); font-size: 11px; padding: 4px 0; margin-top: 6px; margin-right: 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
   .text-btn:hover { color: var(--accent2); }

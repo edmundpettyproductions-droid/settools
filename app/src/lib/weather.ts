@@ -155,23 +155,41 @@ export async function getForecast(lat: number, lon: number, days = 3): Promise<D
   return out;
 }
 
-/** Approximate civil dawn/dusk as sunrise/sunset ± 30 min.
- *  Open-Meteo's free tier doesn't include civil twilight, so this is a
- *  reasonable fallback (true value depends on latitude/season but is
- *  usually 25–35 min in temperate zones).
+/** Parse "YYYY-MM-DDTHH:MM" into { h, m }, ignoring date and timezone.
+ *  Open-Meteo returns times in the *location's* local timezone but without
+ *  a TZ suffix; using `new Date()` would (mis)interpret them in the
+ *  browser's timezone. Pure string math sidesteps the bug entirely.
  */
-function solarTimeOffset(iso: string, offsetMin: number): string {
-  const d = new Date(iso);
-  d.setMinutes(d.getMinutes() + offsetMin);
-  return d.toISOString();
+function parseLocalHHMM(iso: string): { h: number; m: number } | null {
+  const match = /T(\d{2}):(\d{2})/.exec(iso);
+  if (!match) return null;
+  return { h: Number(match[1]), m: Number(match[2]) };
 }
 
-/** Format an ISO time string as "6:42 AM" in the local timezone of the time. */
+/** Approximate civil dawn/dusk as sunrise/sunset ± 30 min.
+ *  Returns an ISO string with the HH:MM replaced — keeps the same shape
+ *  so callers can fmtTime12() it just like the real value.
+ *  Open-Meteo's free tier doesn't include true civil twilight; real
+ *  value varies 20–40 min by latitude/season.
+ */
+function solarTimeOffset(iso: string, offsetMin: number): string {
+  const t = parseLocalHHMM(iso);
+  if (!t) return iso;
+  const total = t.h * 60 + t.m + offsetMin;
+  const wrapped = ((total % 1440) + 1440) % 1440;
+  const h = Math.floor(wrapped / 60);
+  const m = wrapped % 60;
+  return iso.replace(/T\d{2}:\d{2}/, `T${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+}
+
+/** Format Open-Meteo's local-time-no-TZ ISO string as "5:58 AM".
+ *  Uses string parsing — does NOT pass through Date() to avoid
+ *  browser-timezone interpretation of the timezone-less value.
+ */
 export function fmtTime12(iso: string): string {
-  const d = new Date(iso);
-  const h = d.getHours();
-  const m = d.getMinutes();
-  const ap = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 || 12;
-  return `${h12}:${m.toString().padStart(2, '0')} ${ap}`;
+  const t = parseLocalHHMM(iso);
+  if (!t) return '—';
+  const ap = t.h >= 12 ? 'PM' : 'AM';
+  const h12 = t.h % 12 || 12;
+  return `${h12}:${t.m.toString().padStart(2, '0')} ${ap}`;
 }
