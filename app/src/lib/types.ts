@@ -204,6 +204,21 @@ export interface ContactConflict {
   values: ContactFieldValue[];
 }
 
+/** Review state for a single conflict in the manual triage workflow. */
+export type ConflictReviewStatus = 'unreviewed' | 'acknowledged' | 'to_fix';
+
+export interface ConflictReviewEntry {
+  status: ConflictReviewStatus;
+  note?: string;            // user's free-text note (e.g. "Use call sheet number")
+  updated_at: string;       // ISO datetime
+}
+
+/** Map of conflict_id → review state.  conflict_id = `${nameKey}__${field}`. */
+export interface ConflictStatusMap {
+  entries: Record<string, ConflictReviewEntry>;
+  last_updated?: string;
+}
+
 /** A merged contact, deduplicated across sources by normalized name.
  *  Fields are populated from the richest available source. */
 export interface UnifiedContact {

@@ -137,6 +137,13 @@
       summarize: () => 'Auto-populated from all contact sources',
     },
     {
+      key: '__conflicts__', label: 'Conflict Review', icon: '🔍', type: 'other',
+      description: 'Triage cross-source data mismatches (e.g. Bible vs Call Sheet say different phone numbers). Mark each as Acknowledged or Fix-in-Bible, add a note, then export a printable PDF checklist of items to fix in your bible offline.',
+      toolPath: '/tomorrow/', toolHash: '#conflicts',
+      uploadHash: null,
+      summarize: () => 'Cross-source triage workflow',
+    },
+    {
       key: 'settools_notes', label: 'Quick Notes', icon: '📝', type: 'other',
       description: 'On-set jot pad. Tag with scene, person, or category (Director, Continuity, Production, General). Searchable, pinnable, exportable as plain text for production reports.',
       toolPath: '/tomorrow/', toolHash: '#notes',

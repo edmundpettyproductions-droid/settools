@@ -195,7 +195,10 @@ function strOrUndef(v: unknown): string | undefined {
   return t && t.toLowerCase() !== 'n/a' && t !== '-' ? t : undefined;
 }
 
-function nameKey(name: string): string {
+/** Normalized name key — used as the stable identifier across the app
+ *  (for conflict review status, etc.). Exported so other modules can
+ *  match incoming names against the merged contact list. */
+export function nameKey(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
 }
 

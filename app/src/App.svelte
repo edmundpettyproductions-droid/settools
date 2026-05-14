@@ -7,11 +7,14 @@
   import Contacts from './components/Contacts.svelte';
   import Notes from './components/Notes.svelte';
   import Issues from './components/Issues.svelte';
+  import ConflictReview from './components/ConflictReview.svelte';
   import * as issuesLib from './lib/issues';
+  import * as contactsLib from './lib/contacts';
+  import * as csLib from './lib/conflictStatus';
 
-  type Tab = 'tomorrow' | 'resources' | 'cast-bible' | 'contacts' | 'notes' | 'issues';
+  type Tab = 'tomorrow' | 'resources' | 'cast-bible' | 'contacts' | 'notes' | 'issues' | 'conflicts';
 
-  const ALL_TABS: Tab[] = ['tomorrow', 'contacts', 'notes', 'issues', 'cast-bible', 'resources'];
+  const ALL_TABS: Tab[] = ['tomorrow', 'contacts', 'conflicts', 'notes', 'issues', 'cast-bible', 'resources'];
 
   let hasWorkspace = $state(false);
   let workspaceCode = $state<string | null>(null);
@@ -20,6 +23,7 @@
   let err = $state<string | null>(null);
   let tab = $state<Tab>('tomorrow');
   let issueOpenCount = $state(0);
+  let conflictUnreviewedCount = $state(0);
 
   // Restore last-active tab from sessionStorage (per-tab, not synced)
   onMount(async () => {
@@ -36,14 +40,22 @@
       err = e instanceof Error ? e.message : String(e);
     }
     refreshIssueCount();
+    refreshConflictCount();
     sync.subscribe((keys) => {
       if (keys.includes('settools_issues')) refreshIssueCount();
+      if (keys.some((k) =>
+        /^(settools_(cast|crew|cast_bible|conflict_status)|ST_nextday)$/.test(k)
+      )) refreshConflictCount();
     });
   });
 
   function refreshIssueCount() {
     const c = issuesLib.counts();
     issueOpenCount = c.open + c.in_progress;
+  }
+  function refreshConflictCount() {
+    const rows = csLib.listConflicts(contactsLib.loadAllContacts());
+    conflictUnreviewedCount = rows.filter((r) => r.review.status === 'unreviewed').length;
   }
 
   $effect(() => { sessionStorage.setItem('st_app_tab', tab); });
@@ -93,6 +105,9 @@
       <div class="tabs">
         <button class:active={tab === 'tomorrow'} onclick={() => tab = 'tomorrow'}>🌅 Tomorrow</button>
         <button class:active={tab === 'contacts'} onclick={() => tab = 'contacts'}>📞 Contacts</button>
+        <button class:active={tab === 'conflicts'} onclick={() => tab = 'conflicts'}>
+          🔍 Conflicts{#if conflictUnreviewedCount > 0}<span class="badge">{conflictUnreviewedCount}</span>{/if}
+        </button>
         <button class:active={tab === 'notes'} onclick={() => tab = 'notes'}>📝 Notes</button>
         <button class:active={tab === 'issues'} onclick={() => tab = 'issues'}>
           ⚠ Issues{#if issueOpenCount > 0}<span class="badge">{issueOpenCount}</span>{/if}
@@ -108,6 +123,8 @@
     <DailyBriefing />
   {:else if tab === 'contacts'}
     <Contacts />
+  {:else if tab === 'conflicts'}
+    <ConflictReview />
   {:else if tab === 'notes'}
     <Notes />
   {:else if tab === 'issues'}

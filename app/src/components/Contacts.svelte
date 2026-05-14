@@ -4,6 +4,7 @@
   import * as contacts from '../lib/contacts';
   import * as issuesLib from '../lib/issues';
   import * as notesLib from '../lib/notes';
+  import * as csLib from '../lib/conflictStatus';
   import type { UnifiedContact, IssueEntry, NoteEntry } from '../lib/types';
 
   type FilterTag = 'all' | 'cast' | 'crew' | 'phone' | 'email' | 'agent' | 'conflicts' | 'dood';
@@ -194,10 +195,15 @@
             <div class="details">
               {#if c.conflicts && c.conflicts.length}
                 <div class="detail-section conflicts-section">
-                  <div class="d-section-title warn">⚠ Source conflicts — verify before acting</div>
+                  <div class="d-section-title warn">⚠ Source conflicts — <a href="#conflicts" class="review-link">review in Conflicts tab →</a></div>
                   {#each c.conflicts as conflict (conflict.field)}
+                    {@const review = csLib.getStatus(csLib.conflictId(c.name, conflict.field))}
                     <div class="conflict-row">
-                      <div class="conflict-field">{contacts.fieldLabel(conflict.field)}</div>
+                      <div class="conflict-field">
+                        {contacts.fieldLabel(conflict.field)}
+                        {#if review.status === 'acknowledged'}<span class="review-tag ack">✓ Acknowledged</span>{/if}
+                        {#if review.status === 'to_fix'}<span class="review-tag fix">⚠ To Fix</span>{/if}
+                      </div>
                       <div class="conflict-values">
                         {#each conflict.values as v (v.source + v.value)}
                           <div class="conflict-value">
@@ -205,6 +211,7 @@
                             <span class="cv-value">{v.value}</span>
                           </div>
                         {/each}
+                        {#if review.note}<div class="conflict-note"><strong>Note:</strong> {review.note}</div>{/if}
                       </div>
                     </div>
                   {/each}
@@ -484,7 +491,19 @@
     font-family: var(--mono); font-size: 11px; color: var(--warn); font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.06em;
     min-width: 110px; flex-shrink: 0; padding-top: 2px;
+    display: flex; flex-direction: column; gap: 4px;
   }
+  .review-tag {
+    font-family: var(--mono); font-size: 9px; font-weight: 700;
+    padding: 1px 5px; border-radius: 3px; letter-spacing: 0.05em;
+    text-transform: uppercase; align-self: flex-start;
+  }
+  .review-tag.ack { background: rgba(52,211,153,0.15); color: var(--success); border: 1px solid rgba(52,211,153,0.3); }
+  .review-tag.fix { background: rgba(224,90,90,0.15); color: var(--danger); border: 1px solid rgba(224,90,90,0.3); }
+  .conflict-note { font-size: 11.5px; color: var(--success); font-style: italic; margin-top: 4px; }
+  .conflict-note strong { font-style: normal; }
+  .review-link { color: var(--accent); text-decoration: none; font-weight: 500; font-style: italic; }
+  .review-link:hover { text-decoration: underline; }
   .conflict-values { display: flex; flex-direction: column; gap: 3px; flex: 1; }
   .conflict-value { font-size: 12px; }
   .cv-source { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-right: 6px; }
