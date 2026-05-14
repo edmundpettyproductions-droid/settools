@@ -71,19 +71,29 @@ export interface GeocodeResult {
 
 /** A single cast/talent entry extracted from a Cast Bible document. */
 export interface CastBibleEntry {
-  actor: string;             // actor's real name (required)
+  actor: string;             // actor's primary/working name (required)
+  actor_legal?: string;      // legal name if different from theatrical
   character?: string;        // character/role name
   role?: CastRole;           // Lead, Supporting, etc.
+  status?: CastStatus;       // Locked, Cancelled, Wrapped, Shooting, etc.
   phone?: string;
   email?: string;
-  agent_name?: string;
+  agency_name?: string;      // agency/management company name
+  agent_name?: string;       // person at the agency
   agent_phone?: string;
   agent_email?: string;
   manager_name?: string;
   manager_phone?: string;
   manager_email?: string;
+  guardian_name?: string;    // for minors: parent/guardian contact name
+  guardian_phone?: string;
+  hours?: number;            // contracted hours/day if specified
+  rate?: string;             // talent rate if specified (kept as string — varied formats)
+  diet?: string;             // dietary requirements / allergies
   notes?: string;
 }
+
+export type CastStatus = 'Locked' | 'Tentative' | 'Cancelled' | 'Wrapped' | 'Shooting' | 'Pending';
 
 export type CastRole =
   | 'Lead' | 'Co-Lead' | 'Supporting' | 'Recurring' | 'Guest Star'

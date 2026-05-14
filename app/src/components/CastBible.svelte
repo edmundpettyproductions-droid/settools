@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import * as sync from '../lib/sync';
   import * as castBible from '../lib/castBible';
-  import { fileToBase64, fileToText } from '../lib/extract';
+  import { fileToBase64, fileToText, xlsxToText } from '../lib/extract';
   import type { CastBibleEntry, CastBibleState } from '../lib/types';
 
   // ── State ─────────────────────────────────────────────────────────────────
@@ -13,10 +13,11 @@
   let errorMsg = $state<string | null>(null);
 
   // Preview state — what we got back from Claude, awaiting user confirmation
-  let previewEntries   = $state<CastBibleEntry[]>([]);
-  let previewFilename  = $state('');
-  let previewFilesize  = $state(0);
-  let previewFormatSum = $state<string | undefined>(undefined);
+  let previewEntries    = $state<CastBibleEntry[]>([]);
+  let previewFilename   = $state('');
+  let previewFilesize   = $state(0);
+  let previewFormatSum  = $state<string | undefined>(undefined);
+  let previewSkippedRows = $state<number | undefined>(undefined);
 
   // Roster filtering / sort
   let filterText = $state('');
@@ -39,31 +40,50 @@
     previewFilesize = file.size;
 
     const isPdf  = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    const isXlsx = /\.(xlsx|xlsm|xls)$/i.test(file.name)
+      || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      || file.type === 'application/vnd.ms-excel';
     const isText = /^text\//.test(file.type) || /\.(txt|csv|tsv)$/i.test(file.name);
 
-    if (!isPdf && !isText) {
-      errorMsg = `Unsupported file type "${file.type || 'unknown'}". Use PDF, CSV, TSV, or TXT.`;
+    if (!isPdf && !isXlsx && !isText) {
+      errorMsg = `Unsupported file type "${file.type || 'unknown'}". Use PDF, XLSX/XLSM/XLS, CSV, TSV, or TXT.`;
       phase = 'error';
       return;
     }
 
     try {
       phase = 'reading';
-      phaseMsg = `Reading ${file.name}…`;
-      const payload = isPdf ? { kind: 'pdf' as const, pdfBase64: await fileToBase64(file) }
-                            : { kind: 'text' as const, text: await fileToText(file) };
+      phaseMsg = isXlsx
+        ? `Loading XLSX parser and reading all sheets in ${file.name}…`
+        : `Reading ${file.name}…`;
+
+      let payload: { kind: 'pdf'; pdfBase64: string } | { kind: 'text'; text: string };
+      if (isPdf) {
+        payload = { kind: 'pdf', pdfBase64: await fileToBase64(file) };
+      } else if (isXlsx) {
+        const text = await xlsxToText(file);
+        if (!text.trim()) {
+          errorMsg = `XLSX file appears empty (no rows in any sheet).`;
+          phase = 'error';
+          return;
+        }
+        payload = { kind: 'text', text };
+      } else {
+        payload = { kind: 'text', text: await fileToText(file) };
+      }
 
       phase = 'extracting';
-      phaseMsg = `Sending to Claude for extraction… (this can take 10–30 seconds for big PDFs)`;
+      phaseMsg = `Sending to Claude for extraction… (this can take 10–30 seconds for big files)`;
       const result = await castBible.extractCastBible(payload);
 
       if (!result.entries.length) {
-        errorMsg = `Claude extracted 0 cast entries. Verify the file actually contains a cast list (not just crew, schedule, or sides).`;
+        errorMsg = `Claude extracted 0 cast entries.\n\n${result.formatSummary ?? 'No cast roster found in this file.'}\n\nIf the file does contain a cast list, try a different format (e.g. PDF export, or use a file that has the cast on its own clearly-labeled sheet/page).`;
         phase = 'error';
         return;
       }
-      previewEntries   = result.entries;
-      previewFormatSum = result.formatSummary;
+      previewEntries     = result.entries;
+      previewFormatSum   = result.formatSummary;
+      previewSkippedRows = result.skippedRows;
       phase = 'preview';
       phaseMsg = `Found ${result.entries.length} cast entries. Review and confirm to save.`;
     } catch (e) {
@@ -180,11 +200,11 @@
       <div class="dz-icon">🎭</div>
       <div class="dz-text">
         <strong>{state.entries.length ? 'Upload a new Cast Bible' : 'Upload your first Cast Bible'}</strong>
-        <span>Drag a file here or click to browse · PDF, CSV, TSV, TXT</span>
+        <span>Drag a file here or click to browse · XLSX, XLSM, XLS, PDF, CSV, TSV, TXT</span>
       </div>
       <input
         type="file"
-        accept=".pdf,.csv,.tsv,.txt,application/pdf,text/csv,text/plain,text/tab-separated-values"
+        accept=".pdf,.csv,.tsv,.txt,.xlsx,.xlsm,.xls,application/pdf,text/csv,text/plain,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
         bind:this={fileInput}
         onchange={onFileChange}
         style="position:fixed;left:-9999px;width:0;height:0;opacity:0"
@@ -214,8 +234,11 @@
           <div class="preview-sub">
             From <strong>{previewFilename}</strong>
             · {previewEntries.length} entries
-            {#if previewFormatSum}· <em>{previewFormatSum}</em>{/if}
+            {#if previewSkippedRows !== undefined && previewSkippedRows > 0}· <span class="dim">{previewSkippedRows} row{previewSkippedRows === 1 ? '' : 's'} skipped (dividers, blanks)</span>{/if}
           </div>
+          {#if previewFormatSum}
+            <div class="preview-format"><em>{previewFormatSum}</em></div>
+          {/if}
         </div>
         <div class="preview-actions">
           <button class="btn ghost" onclick={cancelPreview}>Cancel</button>
@@ -377,7 +400,9 @@
   .preview-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
   .preview-head h2 { font-family: var(--cond); font-size: 22px; color: var(--accent); margin-bottom: 4px; }
   .preview-sub { font-size: 12px; color: var(--text2); }
-  .preview-sub em { color: var(--text); font-style: italic; }
+  .preview-sub .dim { color: var(--text3); }
+  .preview-format { font-size: 11.5px; color: var(--text3); margin-top: 4px; max-width: 700px; }
+  .preview-format em { font-style: italic; color: var(--text2); }
   .preview-actions { display: flex; gap: 8px; }
   .warning { background: rgba(240,160,64,0.10); color: var(--warn); border: 1px solid rgba(240,160,64,0.35); padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 14px; }
   .preview-table-wrap { max-height: 460px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; }

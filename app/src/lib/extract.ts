@@ -45,6 +45,55 @@ export function fileToText(file: File): Promise<string> {
   });
 }
 
+/** Minimal subset of the SheetJS API we use. */
+interface SheetJsLib {
+  read: (data: ArrayBuffer, opts: { type: 'array' }) => SheetJsBook;
+  utils: {
+    sheet_to_csv: (sheet: unknown, opts?: { FS?: string; RS?: string; blankrows?: boolean }) => string;
+  };
+}
+interface SheetJsBook { SheetNames: string[]; Sheets: Record<string, unknown> }
+
+let xlsxLib: SheetJsLib | null = null;
+
+/** Lazy-load SheetJS from CDN. Only invoked when user uploads an XLSX. */
+async function loadSheetJs(): Promise<SheetJsLib> {
+  if (xlsxLib) return xlsxLib;
+  if ((window as unknown as { XLSX?: SheetJsLib }).XLSX) {
+    xlsxLib = (window as unknown as { XLSX: SheetJsLib }).XLSX;
+    return xlsxLib;
+  }
+  await new Promise<void>((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load SheetJS CDN'));
+    document.head.appendChild(s);
+  });
+  const w = window as unknown as { XLSX?: SheetJsLib };
+  if (!w.XLSX) throw new Error('SheetJS loaded but window.XLSX missing');
+  xlsxLib = w.XLSX;
+  return xlsxLib;
+}
+
+/** Read an XLSX/XLSM/XLS file and return all sheets concatenated as labeled CSV.
+ *  Format: "## Sheet: NAME\n<csv>\n\n## Sheet: NAME2\n..."  — Claude can read this
+ *  shape easily and understands tab boundaries.
+ */
+export async function xlsxToText(file: File): Promise<string> {
+  const XLSX = await loadSheetJs();
+  const buf = await file.arrayBuffer();
+  const book = XLSX.read(buf, { type: 'array' });
+  const parts: string[] = [];
+  for (const name of book.SheetNames) {
+    const sheet = book.Sheets[name];
+    if (!sheet) continue;
+    const csv = XLSX.utils.sheet_to_csv(sheet, { blankrows: false });
+    parts.push(`## Sheet: ${name}\n${csv.trim()}`);
+  }
+  return parts.join('\n\n');
+}
+
 interface ProxyResponse {
   content?: Array<{ type?: string; text?: string }>;
   error?: { message?: string; type?: string };
