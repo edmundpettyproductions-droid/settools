@@ -417,68 +417,86 @@ window.addEntry=function(){
   if(rows.length) rows[rows.length-1].querySelector('input').focus();
 };
 window.pullFromTracker=function(){
-  // Pull from every known cast source. Merges by name, prefers richer data.
-  // Sources tried in priority order:
-  //   1. settools_cast_bible  (richest — full contact + character info)
-  //   2. settools_cast        (call-sheet derived — has call times)
-  //   3. ST_nextday.contacts  (next-day prep — may have tomorrow's lineup)
-  //   4. st-s                 (legacy format, kept for backwards compat)
+  // Cast Sign-In wants TODAY'S working cast, not the full season roster.
+  // Priority:
+  //   1) Call Sheet drives WHO appears (today's working cast)
+  //   2) Bible / Next Day / legacy only ENRICH existing entries
+  //      (fill in missing call time, role) — they don't add new names
+  //   3) Fallback: if no call sheet exists, use bible as primary
+  //      so you can still test on a quiet day or run the kiosk early
   var cast = [];
   var seen = {};
-  var sources = [];
+  var primarySource = null;
 
-  function add(name, role, callTime, sourceLabel) {
-    if (!name) return;
+  function add(name, role, callTime) {
+    if (!name) return false;
     name = String(name).trim();
-    if (!name) return;
+    if (!name) return false;
     var key = name.toLowerCase();
-    if (seen[key]) {
-      // Already have it — fill in missing fields from this source if useful.
-      var existing = seen[key];
-      if (!existing.callTime && callTime) existing.callTime = String(callTime).trim();
-      if (!existing.role && role) existing.role = String(role).trim();
-      return;
-    }
+    if (seen[key]) return false;
     var entry = { name: name, role: role ? String(role).trim() : '', callTime: callTime ? String(callTime).trim() : '' };
     seen[key] = entry;
     cast.push(entry);
-    if (sources.indexOf(sourceLabel) === -1) sources.push(sourceLabel);
+    return true;
   }
 
-  // 1) Cast Bible — richest source.
-  try {
-    var cb = JSON.parse(localStorage.getItem('settools_cast_bible') || '{}');
-    (cb.entries || []).forEach(function(e){ add(e.actor, e.character || e.role, '', 'Cast Bible'); });
-  } catch(e){}
+  function enrich(name, role, callTime) {
+    if (!name) return;
+    name = String(name).trim();
+    if (!name) return;
+    var existing = seen[name.toLowerCase()];
+    if (!existing) return;  // ENRICH only — don't add new people from this source
+    if (!existing.callTime && callTime) existing.callTime = String(callTime).trim();
+    if (!existing.role && role) existing.role = String(role).trim();
+  }
 
-  // 2) Call-sheet-derived cast — has call times.
+  // ── PRIMARY: Call Sheet ──────────────────────────────────────────────────
   try {
     var ct = JSON.parse(localStorage.getItem('settools_cast') || '{}');
     var people = ct.people || ct.rows || [];
-    people.forEach(function(c){ add(c.name || c.actor || c.talent, c.role || c.character, c.callTime || c.onSetTime, 'Call Sheet'); });
+    people.forEach(function(c){
+      add(c.name || c.actor || c.talent, c.role || c.character, c.callTime || c.onSetTime);
+    });
+    if (cast.length) primarySource = 'Call Sheet (today)';
   } catch(e){}
 
-  // 3) Next-day prep contacts (cast only).
+  // ── PRIMARY FALLBACK: legacy st-s if no call sheet ───────────────────────
+  if (!cast.length) {
+    try {
+      var ss = JSON.parse(localStorage.getItem('st-s') || '{}');
+      (ss.cast || []).forEach(function(c){ add(c.name, c.role, c.callTime || c.onSetTime); });
+      if (cast.length) primarySource = 'legacy data';
+      if (ss.prod) {
+        if (ss.prod.date && !document.getElementById('su-date').value) document.getElementById('su-date').value=ss.prod.date;
+        if (ss.prod.title && !document.getElementById('su-show').value) document.getElementById('su-show').value=ss.prod.title;
+      }
+    } catch(e){}
+  }
+
+  // ── PRIMARY FALLBACK: Cast Bible if still no list ────────────────────────
+  // Only happens when no call sheet at all — bible has the full roster which
+  // is too big for a daily kiosk but better than nothing.
+  if (!cast.length) {
+    try {
+      var cb = JSON.parse(localStorage.getItem('settools_cast_bible') || '{}');
+      (cb.entries || []).forEach(function(e){ add(e.actor, e.character || e.role, ''); });
+      if (cast.length) primarySource = 'Cast Bible (full roster — upload a call sheet to narrow to today)';
+    } catch(e){}
+  }
+
+  // ── ENRICH from richer sources (only fills missing fields, never adds) ───
+  try {
+    var cb2 = JSON.parse(localStorage.getItem('settools_cast_bible') || '{}');
+    (cb2.entries || []).forEach(function(e){ enrich(e.actor, e.character || e.role, ''); });
+  } catch(e){}
   try {
     var nd = JSON.parse(localStorage.getItem('ST_nextday') || '{}');
     (nd.contacts || []).forEach(function(c){
-      if (c.isCast === true || c.role === 'cast' || (c.role && /cast/i.test(c.role))) {
-        add(c.name, c.role, '', 'Next Day Prep');
-      }
+      if (c.isCast === true || c.role === 'cast' || (c.role && /cast/i.test(c.role))) enrich(c.name, c.role, '');
     });
   } catch(e){}
 
-  // 4) Legacy st-s shape (older Set Tools data).
-  try {
-    var ss = JSON.parse(localStorage.getItem('st-s') || '{}');
-    (ss.cast || []).forEach(function(c){ add(c.name, c.role, c.callTime || c.onSetTime, 'legacy'); });
-    if (ss.prod) {
-      if (ss.prod.date && !document.getElementById('su-date').value) document.getElementById('su-date').value=ss.prod.date;
-      if (ss.prod.title && !document.getElementById('su-show').value) document.getElementById('su-show').value=ss.prod.title;
-    }
-  } catch(e){}
-
-  // Also pull production title from the Universal Header if present.
+  // ── Production title from UH if not set ──────────────────────────────────
   try {
     var uh = JSON.parse(localStorage.getItem('settools_uh') || '{}');
     if (uh.production && !document.getElementById('su-show').value) {
@@ -487,18 +505,17 @@ window.pullFromTracker=function(){
   } catch(e){}
 
   if (!cast.length) {
-    alert('No cast found in any source.\n\nUpload a call sheet (Crew Tracker) or a cast bible (Cast Bible tab) first. Both auto-sync from any device in this workspace.');
+    alert('No cast found.\n\nUpload a call sheet in Crew Tracker (for today\'s working cast) — or a cast bible as fallback.\n\nBoth auto-sync from any device in this workspace.');
     return;
   }
 
   SS.cast = cast;
   renderEntries();
-  // Brief confirmation so the user sees what worked.
   var btn = document.querySelector('[onclick="pullFromTracker()"]');
   if (btn) {
     var orig = btn.textContent;
-    btn.textContent = '✓ Loaded ' + cast.length + ' from ' + sources.join(' + ');
-    setTimeout(function(){ btn.textContent = orig; }, 3000);
+    btn.textContent = '✓ Loaded ' + cast.length + ' — ' + primarySource;
+    setTimeout(function(){ btn.textContent = orig; }, 4000);
   }
 };
 window.parsePaste=function(){
