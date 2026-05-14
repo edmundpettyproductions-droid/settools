@@ -68,3 +68,39 @@ export interface GeocodeResult {
   country?: string;
   admin1?: string;
 }
+
+/** A single cast/talent entry extracted from a Cast Bible document. */
+export interface CastBibleEntry {
+  actor: string;             // actor's real name (required)
+  character?: string;        // character/role name
+  role?: CastRole;           // Lead, Supporting, etc.
+  phone?: string;
+  email?: string;
+  agent_name?: string;
+  agent_phone?: string;
+  agent_email?: string;
+  manager_name?: string;
+  manager_phone?: string;
+  manager_email?: string;
+  notes?: string;
+}
+
+export type CastRole =
+  | 'Lead' | 'Co-Lead' | 'Supporting' | 'Recurring' | 'Guest Star'
+  | 'Day Player' | 'Background' | 'Stunt' | 'Stand-In' | 'Voice' | 'Other';
+
+/** A single Cast Bible upload event — kept for audit + history. */
+export interface CastBibleUpload {
+  filename: string;
+  filesize: number;          // bytes
+  uploaded_at: string;       // ISO datetime
+  extracted_count: number;
+  format_summary?: string;   // Claude's brief description of source format
+}
+
+/** Full Cast Bible state stored under key `settools_cast_bible`. */
+export interface CastBibleState {
+  entries: CastBibleEntry[];
+  uploads: CastBibleUpload[];
+  last_updated?: string;     // ISO datetime
+}

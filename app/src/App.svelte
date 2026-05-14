@@ -3,8 +3,9 @@
   import * as sync from './lib/sync';
   import DailyBriefing from './components/DailyBriefing.svelte';
   import GlobalResources from './components/GlobalResources.svelte';
+  import CastBible from './components/CastBible.svelte';
 
-  type Tab = 'tomorrow' | 'resources';
+  type Tab = 'tomorrow' | 'resources' | 'cast-bible';
 
   let hasWorkspace = $state(false);
   let workspaceCode = $state<string | null>(null);
@@ -16,7 +17,10 @@
   // Restore last-active tab from sessionStorage (per-tab, not synced)
   onMount(async () => {
     const saved = sessionStorage.getItem('st_app_tab') as Tab | null;
-    if (saved === 'tomorrow' || saved === 'resources') tab = saved;
+    if (saved === 'tomorrow' || saved === 'resources' || saved === 'cast-bible') tab = saved;
+    // Allow deep-linking to a tab via the URL hash, e.g. /tomorrow/#cast-bible
+    const h = location.hash.replace('#', '');
+    if (h === 'tomorrow' || h === 'resources' || h === 'cast-bible') tab = h;
     try {
       const s = await sync.init();
       hasWorkspace = s.hasWorkspace;
@@ -73,6 +77,7 @@
       <div class="tabs">
         <button class:active={tab === 'tomorrow'} onclick={() => tab = 'tomorrow'}>🌅 Tomorrow</button>
         <button class:active={tab === 'resources'} onclick={() => tab = 'resources'}>📁 Resources</button>
+        <button class:active={tab === 'cast-bible'} onclick={() => tab = 'cast-bible'}>🎭 Cast Bible</button>
       </div>
       <a class="home-link" href="/index.html">← Set Tools home</a>
     </div>
@@ -80,8 +85,10 @@
 
   {#if tab === 'tomorrow'}
     <DailyBriefing />
-  {:else}
+  {:else if tab === 'resources'}
     <GlobalResources />
+  {:else}
+    <CastBible />
   {/if}
 {/if}
 

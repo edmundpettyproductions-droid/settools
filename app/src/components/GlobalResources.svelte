@@ -130,6 +130,20 @@
       },
     },
     {
+      key: 'settools_cast_bible', label: 'Cast Bible', icon: '🎭', type: 'cast',
+      description: 'Full cast roster with agent/manager contacts, normalized from your bible PDF / sheet. Upload and edit in the dedicated Cast Bible tab; this card is just a status indicator.',
+      toolPath: '/tomorrow/', toolHash: '#cast-bible',  // same-origin → opens the Svelte tab
+      uploadHash: '',  // upload lives in-tab, not deep-linked
+      summarize: (raw) => {
+        try {
+          const v = JSON.parse(raw) as { entries?: unknown[]; uploads?: unknown[] };
+          const n = v.entries?.length ?? 0;
+          const u = v.uploads?.length ?? 0;
+          return `${n} cast member${n === 1 ? '' : 's'}${u ? ` · ${u} upload${u === 1 ? '' : 's'}` : ''}`;
+        } catch { return '—'; }
+      },
+    },
+    {
       key: 'ST_nextday', label: 'Next Day Prep', icon: '🌅', type: 'nextday',
       description: 'Tomorrow\'s draft: advance schedule, call sheet draft, script + script sides, DOODs, contact list, email blast.',
       toolPath: '/next-day.html', toolHash: '',
