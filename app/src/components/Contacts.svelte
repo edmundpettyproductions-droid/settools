@@ -2,9 +2,9 @@
   import { onMount } from 'svelte';
   import * as sync from '../lib/sync';
   import * as contacts from '../lib/contacts';
-  import type { UnifiedContact, ContactSource } from '../lib/types';
+  import type { UnifiedContact } from '../lib/types';
 
-  type FilterTag = 'all' | 'cast' | 'crew' | 'phone' | 'email' | 'agent';
+  type FilterTag = 'all' | 'cast' | 'crew' | 'phone' | 'email' | 'agent' | 'conflicts' | 'dood';
 
   let allContacts = $state<UnifiedContact[]>([]);
   let search = $state('');
@@ -19,8 +19,8 @@
   onMount(() => {
     refresh();
     const unsub = sync.subscribe((keys) => {
-      // Re-merge if any contact-bearing key changed
-      if (keys.some((k) => /^(settools_(cast|crew|cast_bible)|ST_nextday)$/.test(k))) {
+      // Re-merge if any contact-bearing key (incl. DOOD) changed
+      if (keys.some((k) => /^(settools_(cast|crew|cast_bible|dood)|ST_nextday)$/.test(k))) {
         refresh();
       }
     });
@@ -39,6 +39,8 @@
       if (filter === 'phone' && !c.phone) return false;
       if (filter === 'email' && !c.email) return false;
       if (filter === 'agent' && !c.agent_name && !c.agent_phone && !c.agent_email) return false;
+      if (filter === 'conflicts' && (!c.conflicts || !c.conflicts.length)) return false;
+      if (filter === 'dood' && (!c.dood || !c.dood.length)) return false;
       // Search
       if (!q) return true;
       const haystack = (c.name + ' ' + (c.character ?? '') + ' ' + (c.role ?? '') + ' '
@@ -68,14 +70,7 @@
   }
 
   // ── Display helpers ───────────────────────────────────────────────────────
-  function sourceLabel(s: ContactSource): string {
-    switch (s) {
-      case 'cast_bible': return 'Cast Bible';
-      case 'call_sheet': return 'Call Sheet';
-      case 'next_day':   return 'Next Day Prep';
-      case 'sign_in':    return 'Sign-In Records';
-    }
-  }
+  const sourceLabel = contacts.sourceLabel;
 
   function secondaryLine(c: UnifiedContact): string {
     if (c.character && c.role) return `${c.character} · ${c.role}`;
@@ -125,6 +120,12 @@
         <button class:active={filter === 'phone'} onclick={() => filter = 'phone'}>📞 ({counts.withPhone})</button>
         <button class:active={filter === 'email'} onclick={() => filter = 'email'}>✉ ({counts.withEmail})</button>
         <button class:active={filter === 'agent'} onclick={() => filter = 'agent'}>w/ Agent ({counts.withAgent})</button>
+        {#if counts.inDood > 0}
+          <button class:active={filter === 'dood'} onclick={() => filter = 'dood'}>📅 in DOOD ({counts.inDood})</button>
+        {/if}
+        {#if counts.withConflicts > 0}
+          <button class:active={filter === 'conflicts'} class="conflict-filter" onclick={() => filter = 'conflicts'}>⚠ Conflicts ({counts.withConflicts})</button>
+        {/if}
       </div>
     </div>
 
@@ -135,8 +136,21 @@
           <button class="row-main" onclick={() => toggleExpand(c.name)} aria-expanded={expanded === c.name}>
             <span class="avatar" data-cat={c.category}>{contacts.initials(c.name)}</span>
             <div class="info">
-              <div class="name">{c.name}{#if c.status}<span class="status status-{c.status.toLowerCase()}">{c.status}</span>{/if}</div>
-              <div class="secondary">{secondaryLine(c)}</div>
+              <div class="name">
+                {c.name}
+                {#if c.status}<span class="status status-{c.status.toLowerCase()}">{c.status}</span>{/if}
+                {#if c.conflicts && c.conflicts.length}
+                  <span class="conflict-badge" title="Has {c.conflicts.length} source conflict{c.conflicts.length === 1 ? '' : 's'}">⚠ {c.conflicts.length}</span>
+                {/if}
+              </div>
+              <div class="secondary">
+                {secondaryLine(c)}
+                {#if c.dood && c.dood.length}
+                  <span class="dood-summary">
+                    · 📅 {c.dood.map((d) => `${d.department}${d.days_label ? ' ' + d.days_label : ''}`).join(' / ')}
+                  </span>
+                {/if}
+              </div>
             </div>
             <div class="chevron">{expanded === c.name ? '▾' : '▸'}</div>
           </button>
@@ -162,6 +176,40 @@
 
           {#if expanded === c.name}
             <div class="details">
+              {#if c.conflicts && c.conflicts.length}
+                <div class="detail-section conflicts-section">
+                  <div class="d-section-title warn">⚠ Source conflicts — verify before acting</div>
+                  {#each c.conflicts as conflict (conflict.field)}
+                    <div class="conflict-row">
+                      <div class="conflict-field">{contacts.fieldLabel(conflict.field)}</div>
+                      <div class="conflict-values">
+                        {#each conflict.values as v (v.source + v.value)}
+                          <div class="conflict-value">
+                            <span class="cv-source">{sourceLabel(v.source)}:</span>
+                            <span class="cv-value">{v.value}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+
+              {#if c.dood && c.dood.length}
+                <div class="detail-section">
+                  <div class="d-section-title">DOOD Coverage</div>
+                  {#each c.dood as d (d.department)}
+                    <div class="detail-row">
+                      <span class="d-k">{d.department}</span>
+                      <span class="d-v">
+                        {#if d.days_label}<span class="day-pill">{d.days_label}</span>{:else}—{/if}
+                        {#if d.notes}<span class="dood-note">· {d.notes}</span>{/if}
+                      </span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+
               {#if c.actor_legal}
                 <div class="detail-row"><span class="d-k">Legal name</span><span class="d-v">{c.actor_legal}</span></div>
               {/if}
@@ -308,6 +356,19 @@
   .status-tentative,
   .status-pending   { background: rgba(240,160,64,0.13); color: var(--warn); }
 
+  .conflict-badge {
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 3px; letter-spacing: 0.05em;
+    background: rgba(240,160,64,0.18); color: var(--warn);
+    border: 1px solid rgba(240,160,64,0.45);
+    cursor: help;
+  }
+
+  .dood-summary { color: var(--text3); margin-left: 4px; }
+
+  .conflict-filter { border-color: rgba(240,160,64,0.4) !important; color: var(--warn) !important; }
+  .conflict-filter.active { background: rgba(240,160,64,0.16) !important; border-color: rgba(240,160,64,0.55) !important; }
+
   .chevron { color: var(--text3); font-family: var(--mono); font-size: 14px; flex-shrink: 0; }
 
   /* Quick actions row (always visible) */
@@ -348,6 +409,35 @@
 
   .sources { padding-top: 12px; margin-top: 6px; border-top: 1px dashed var(--border); }
   .source-tag { font-family: var(--mono); font-size: 10px; padding: 2px 6px; background: var(--bg3); color: var(--text3); border: 1px solid var(--border); border-radius: 3px; margin-right: 4px; }
+
+  /* Conflicts */
+  .conflicts-section {
+    background: rgba(240,160,64,0.06);
+    border: 1px solid rgba(240,160,64,0.25);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 6px -2px;
+  }
+  .d-section-title.warn { color: var(--warn); }
+  .conflict-row { display: flex; gap: 12px; padding: 6px 0; align-items: flex-start; border-bottom: 1px dashed rgba(240,160,64,0.18); }
+  .conflict-row:last-child { border-bottom: none; }
+  .conflict-field {
+    font-family: var(--mono); font-size: 11px; color: var(--warn); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    min-width: 110px; flex-shrink: 0; padding-top: 2px;
+  }
+  .conflict-values { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .conflict-value { font-size: 12px; }
+  .cv-source { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-right: 6px; }
+  .cv-value { color: var(--text); }
+
+  /* DOOD coverage */
+  .day-pill {
+    display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 600;
+    padding: 2px 8px; background: rgba(167,139,250,0.13); color: var(--accent);
+    border: 1px solid rgba(167,139,250,0.35); border-radius: 3px;
+  }
+  .dood-note { color: var(--text3); font-style: italic; margin-left: 8px; font-size: 11.5px; }
 
   /* Toast */
   .toast {

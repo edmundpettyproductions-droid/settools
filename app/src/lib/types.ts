@@ -127,6 +127,27 @@ export type ContactSource =
 /** Categories for unified contact display + filtering. */
 export type ContactCategory = 'cast' | 'crew' | 'agent' | 'manager' | 'guardian' | 'vendor' | 'other';
 
+/** One observation of a field's value from a specific source.
+ *  Multiple of these for the same field across sources = potential conflict. */
+export interface ContactFieldValue {
+  source: ContactSource;
+  value: string;
+}
+
+/** A DOOD appearance — this person is scheduled in a department's DOOD on these days. */
+export interface DoodAppearance {
+  department: string;        // "Cast", "Wardrobe", "Stunts", "MU/Hair", "Vehicle", etc.
+  days: number[];            // shoot day numbers, sorted ascending, deduped
+  days_label?: string;       // pretty label like "D1, D3-5"
+  notes?: string;
+}
+
+/** A detected conflict: same field, multiple distinct values across sources. */
+export interface ContactConflict {
+  field: string;             // 'phone', 'email', 'character', etc.
+  values: ContactFieldValue[];
+}
+
 /** A merged contact, deduplicated across sources by normalized name.
  *  Fields are populated from the richest available source. */
 export interface UnifiedContact {
@@ -153,4 +174,12 @@ export interface UnifiedContact {
   notes?: string;
   // Provenance
   sources: ContactSource[];
+  /** Per-field observations across sources. Used to detect conflicts.
+   *  Only populated for fields where conflicts are meaningful
+   *  (phone, email, character, role, status). */
+  field_values?: Record<string, ContactFieldValue[]>;
+  /** Detected conflicts: fields where multiple distinct values exist. */
+  conflicts?: ContactConflict[];
+  /** DOOD appearances (per department this person is scheduled in). */
+  dood?: DoodAppearance[];
 }
