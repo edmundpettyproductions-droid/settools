@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Built Svelte app — generated; GitHub collapses these in diffs.
+tomorrow/** linguist-generated=true
+*.map linguist-generated=true

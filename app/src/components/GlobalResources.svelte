@@ -268,10 +268,18 @@
 </section>
 
 {#if viewKey}
-  <div class="modal-bg" onclick={closeViewer} onkeydown={(e) => e.key === 'Escape' && closeViewer()} role="presentation">
-    <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+  <div class="modal-bg" onclick={closeViewer} role="presentation">
+    <div
+      class="modal"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => { if (e.key === 'Escape') closeViewer(); }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      tabindex="-1"
+    >
       <header class="modal-head">
-        <h3>{viewKey}</h3>
+        <h3 id="modal-title">{viewKey}</h3>
         <button class="modal-close" onclick={closeViewer} aria-label="Close">×</button>
       </header>
       <pre class="modal-body">{viewBody}</pre>
