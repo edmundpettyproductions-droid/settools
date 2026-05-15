@@ -2,6 +2,8 @@
   import { onMount, tick } from 'svelte';
   import * as sync from '../lib/sync';
   import type { UHState } from '../lib/types';
+  import * as extract from '../lib/extract';
+  import * as T from '../lib/tracker';
 
   const UH_KEY = 'settools_uh';
   const TIME_KEYS = new Set<keyof UHState>(['callTime', 'firstShot']);
@@ -141,6 +143,93 @@
   function displayVal(f: FieldDef): string {
     return uh[f.key] ?? '';
   }
+
+  // ─── Call Sheet Upload ────────────────────────────────────────────
+  let csFileInput = $state<HTMLInputElement | null>(null);
+  let csStatus = $state<{ type: 'loading' | 'ok' | 'err'; msg: string } | null>(null);
+  let csUploading = $state(false);
+
+  function onCsFileChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) void processCallSheet(file);
+    input.value = '';
+  }
+
+  async function processCallSheet(file: File) {
+    csUploading = true;
+    csStatus = { type: 'loading', msg: 'Reading PDF...' };
+    try {
+      const b64 = await extract.fileToBase64(file);
+
+      // Extract BOTH cast and crew in one prompt
+      csStatus = { type: 'loading', msg: 'Extracting cast & crew...' };
+      const system = 'You extract cast AND crew data from film/TV call sheets. Return ONLY raw JSON, no markdown.';
+      const prompt = `Extract from this call sheet and return exactly this JSON structure (no markdown):
+{"cast":[{"id":"","name":"","role":"","callTime":"","onSetTime":""}],
+"crew":[{"id":"","name":"","role":"","callTime":"","onSetTime":""}],
+"header":{"production":"","episode":"","director":"","callTime":"","location":"","shootDay":""}}
+cast: actors/performers only. role=character name. crew: department staff only. role=job title/dept.
+id=badge/ID or empty. callTime/onSetTime=HH:MM 24h. header fields: empty string if not found.`;
+
+      const rawResp = await extract.extractFromPdf(b64, prompt, { system });
+      const result = extract.parseJsonResponse<{
+        cast?: T.ExtractedPerson[];
+        crew?: T.ExtractedPerson[];
+        header?: T.ExtractResult['header'];
+      }>(rawResp);
+
+      let castCount = 0, crewCount = 0;
+
+      // Load existing trackers to replace
+      if (result.cast?.length) {
+        const castData = T.loadTracker('settools_cast');
+        let nid = castData.nid;
+        const newRows: T.TrackerRow[] = [];
+        for (const p of result.cast) {
+          newRows.push(T.mkRow(nid++, {
+            empId: String(p.id ?? ''),
+            name: String(p.name ?? ''),
+            role: String(p.role ?? ''),
+            callTime: T.normTime(String(p.callTime ?? '')),
+            onSetTime: T.normTime(String(p.onSetTime ?? '')),
+          }));
+        }
+        castCount = newRows.length;
+        await T.saveTracker('settools_cast', { rows: newRows, nid });
+      }
+
+      if (result.crew?.length) {
+        const crewData = T.loadTracker('settools_crew');
+        let nid = crewData.nid;
+        const newRows: T.TrackerRow[] = [];
+        for (const p of result.crew) {
+          newRows.push(T.mkRow(nid++, {
+            empId: String(p.id ?? ''),
+            name: String(p.name ?? ''),
+            role: String(p.role ?? ''),
+            callTime: T.normTime(String(p.callTime ?? '')),
+            onSetTime: T.normTime(String(p.onSetTime ?? '')),
+          }));
+        }
+        crewCount = newRows.length;
+        await T.saveTracker('settools_crew', { rows: newRows, nid });
+      }
+
+      // Merge header into UH
+      if (result.header) {
+        await T.mergeExtractedHeader(result.header);
+        load(); // refresh UH display
+      }
+
+      csStatus = { type: 'ok', msg: `✓ ${castCount} cast, ${crewCount} crew` };
+      setTimeout(() => { csStatus = null; }, 5000);
+    } catch (e) {
+      csStatus = { type: 'err', msg: e instanceof Error ? e.message.slice(0, 60) : String(e) };
+    } finally {
+      csUploading = false;
+    }
+  }
 </script>
 
 <div class="uh-bar" role="toolbar" aria-label="Universal header — production info">
@@ -181,9 +270,27 @@
   {/each}
 
   <div class="actions">
-    <button class="upload-btn" title="Upload call sheet PDF to auto-fill fields (coming soon)" disabled>
-      📋 Call Sheet
+    <button
+      class="upload-btn"
+      class:uploading={csUploading}
+      title="Upload call sheet PDF to populate header, cast & crew"
+      disabled={csUploading}
+      onclick={() => csFileInput?.click()}
+    >
+      {csUploading ? '⏳ Extracting...' : '📋 Call Sheet'}
     </button>
+    <input
+      bind:this={csFileInput}
+      type="file"
+      accept=".pdf"
+      onchange={onCsFileChange}
+      style="position:fixed;left:-9999px;width:0;height:0;opacity:0"
+    />
+    {#if csStatus}
+      <span class="cs-status {csStatus.type}" title={csStatus.msg}>
+        {csStatus.msg}
+      </span>
+    {/if}
   </div>
 </div>
 
@@ -296,21 +403,40 @@
     padding: 3px 10px;
     font-family: var(--mono);
     font-size: 11px;
-    color: var(--text3);
-    cursor: not-allowed;
-    opacity: 0.6;
+    color: var(--text2);
+    cursor: pointer;
     transition: all 0.12s;
     white-space: nowrap;
   }
-  .upload-btn:not(:disabled) {
-    cursor: pointer;
-    color: var(--text2);
-    opacity: 1;
-  }
-  .upload-btn:not(:disabled):hover {
+  .upload-btn:hover:not(:disabled) {
     border-color: var(--accent);
     color: var(--accent);
   }
+  .upload-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .upload-btn.uploading {
+    color: var(--accent);
+    border-color: var(--accent);
+    animation: pulse-btn 1.5s ease infinite;
+  }
+  @keyframes pulse-btn {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  .cs-status {
+    font-family: var(--mono);
+    font-size: 10px;
+    white-space: nowrap;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cs-status.loading { color: var(--text2); }
+  .cs-status.ok { color: var(--success); }
+  .cs-status.err { color: var(--danger); }
 
   /* Responsive: on very small screens let it scroll */
   @media (max-width: 640px) {
