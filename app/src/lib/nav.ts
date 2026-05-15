@@ -6,25 +6,49 @@ export type Tab =
   | 'tomorrow'
   | 'cast-timer'
   | 'crew-timer'
+  | 'sign-in'
+  | 'scenes'
+  | 'bg'
+  | 'dashboard'
   | 'depts'
   | 'contacts'
   | 'conflicts'
+  | 'distro'
   | 'notes'
   | 'issues'
+  | 'next-call'
+  | 'dood'
+  | 'wrap'
+  | 'time-sheet'
+  | 'comm-log'
+  | 'walkie'
   | 'cast-bible'
-  | 'resources';
+  | 'resources'
+  | 'settings';
 
 export const ALL_TABS: readonly Tab[] = [
   'tomorrow',
   'cast-timer',
   'crew-timer',
+  'sign-in',
+  'scenes',
+  'bg',
+  'dashboard',
   'depts',
   'contacts',
   'conflicts',
+  'distro',
   'notes',
   'issues',
+  'next-call',
+  'dood',
+  'wrap',
+  'time-sheet',
+  'comm-log',
+  'walkie',
   'cast-bible',
   'resources',
+  'settings',
 ];
 
 export function isTab(v: unknown): v is Tab {

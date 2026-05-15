@@ -45,6 +45,11 @@
     load();
     const unsub = sync.subscribe((keys) => {
       if (keys.includes(cfg.storageKey)) load();
+      // Auto-sync arrivals when sign-in kiosk data changes
+      if (keys.includes('ST_signin')) {
+        const result = T.syncFromKiosk(rows);
+        if (result.matched > 0) void save();
+      }
     });
     // Tick every second for live countdowns
     tickTimer = window.setInterval(() => { now = new Date(); }, 1000);
@@ -364,9 +369,7 @@
       <input type="number" class="warn-input" bind:value={warnMinutes} min={0} max={120}>
       <span class="li">min before call</span>
       <button class="btn btn-a btn-sm" onclick={() => now = new Date()}>Refresh</button>
-      {#if mode === 'cast'}
-        <button class="btn btn-sm" onclick={doKioskSync} title="Pull times from Sign-In Station">Kiosk</button>
-      {/if}
+      <button class="btn btn-sm" onclick={doKioskSync} title="Manual sync from Sign-In Station (auto-sync is on)">↓ Kiosk</button>
       <button class="btn btn-sm" onclick={clearAll}>Clear All</button>
     </div>
   </div>
@@ -625,7 +628,7 @@
   .tracker-tab {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 52px - 34px); /* minus topnav and UH bar */
+    height: 100%;
     overflow: hidden;
   }
 
@@ -1079,6 +1082,6 @@
   @media (max-width: 768px) {
     .split { grid-template-columns: 1fr; }
     .panel:first-child { border-right: none; border-bottom: 1px solid var(--border); max-height: 50%; }
-    .tracker-tab { height: auto; min-height: calc(100vh - 86px); }
+    .tracker-tab { height: auto; min-height: 100%; }
   }
 </style>
