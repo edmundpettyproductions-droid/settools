@@ -1,0 +1,28 @@
+/* Set Tools — Svelte app global stylesheet.
+   Design tokens match next-day.html's purple theme since this widget is "tomorrow-oriented".
+   Components mostly use these variables; only override locally when needed. */
+
+:root {
+  --bg:      #0d0b14;
+  --bg2:     #151020;
+  --bg3:     #1d1830;
+  --bg4:     #261f3e;
+  --border:  #2a2245;
+  --border2: #3e3360;
+  --text:    #ece8ff;
+  --text2:   #9b8fd4;
+  --text3:   #5a4f90;
+  --accent:  #a78bfa;
+  --accent2: #7c3aed;
+  --success: #34d399;
+  --danger:  #e05a5a;
+  --warn:    #f0a040;
+  --font:    'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono:    'DM Mono', 'Courier New', monospace;
+  --cond:    'Barlow Condensed', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+button { font: inherit; cursor: pointer; }
+a { color: var(--accent); }
