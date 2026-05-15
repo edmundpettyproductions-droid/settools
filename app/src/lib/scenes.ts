@@ -68,9 +68,38 @@ export const COL_WIDTHS: Record<ColKey, string> = {
 };
 
 // ─── CRUD ────────────────────────────────────────────────────────────
+/** Normalize a raw row object from storage, handling old field names from
+ *  the static HTML version of Set Tools (scene→sceneNum, set→setLocation)
+ *  and coercing types that may have been stored as strings.
+ */
+function normalizeRow(r: Record<string, unknown>, id: number): SceneRow {
+  return {
+    id,
+    sceneNum:    String(r.sceneNum    ?? r.scene ?? r.sceneNumber ?? ''),
+    description: String(r.description ?? r.desc  ?? ''),
+    setLocation: String(r.setLocation ?? r.set   ?? r.location   ?? ''),
+    cast:        String(r.cast        ?? r.actors ?? ''),
+    pages:       String(r.pages       ?? r.pgs    ?? ''),
+    status:      (r.status as SceneStatus) ?? 'scheduled',
+    firstUp:     (r.firstUp as string) ?? null,
+    wrapped:     (r.wrapped as string) ?? null,
+    setups:      typeof r.setups === 'number' ? r.setups : parseInt(String(r.setups ?? 0), 10) || 0,
+    notes:       String(r.notes ?? ''),
+  };
+}
+
 export function loadScenes(): SceneData {
-  const raw = sync.getJSON<SceneData>(STORAGE_KEY);
-  if (raw?.rows) return { rows: raw.rows, nid: raw.nid ?? raw.rows.length + 1 };
+  const raw = sync.getJSON<{ rows: Record<string, unknown>[]; nid?: number }>(STORAGE_KEY);
+  if (raw?.rows) {
+    const rows = raw.rows.map((r, i) => {
+      // Coerce id: may be stored as string, or use index+1 as fallback
+      const id = typeof r.id === 'number' ? r.id
+               : typeof r.id === 'string' ? (parseInt(r.id, 10) || i + 1)
+               : i + 1;
+      return normalizeRow(r, id);
+    });
+    return { rows, nid: raw.nid ?? rows.length + 1 };
+  }
   return { rows: [], nid: 1 };
 }
 
