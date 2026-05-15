@@ -4,6 +4,8 @@
 
 export type Tab =
   | 'tomorrow'
+  | 'cast-timer'
+  | 'crew-timer'
   | 'depts'
   | 'contacts'
   | 'conflicts'
@@ -14,6 +16,8 @@ export type Tab =
 
 export const ALL_TABS: readonly Tab[] = [
   'tomorrow',
+  'cast-timer',
+  'crew-timer',
   'depts',
   'contacts',
   'conflicts',

@@ -10,6 +10,7 @@
   import ConflictReview from './components/ConflictReview.svelte';
   import DeptStatus from './components/DeptStatus.svelte';
   import UniversalHeader from './components/UniversalHeader.svelte';
+  import TrackerTab from './components/TrackerTab.svelte';
   import * as issuesLib from './lib/issues';
   import * as contactsLib from './lib/contacts';
   import * as csLib from './lib/conflictStatus';
@@ -117,6 +118,8 @@
       <div class="brand">Set Tools <span class="ws">· {workspaceCode}</span></div>
       <div class="tabs">
         <button class:active={tab === 'tomorrow'} onclick={() => tab = 'tomorrow'}>🌅 Tomorrow</button>
+        <button class:active={tab === 'cast-timer'} onclick={() => tab = 'cast-timer'}>🎭 Cast</button>
+        <button class:active={tab === 'crew-timer'} onclick={() => tab = 'crew-timer'}>👥 Crew</button>
         <button class:active={tab === 'depts'} onclick={() => tab = 'depts'}>
           🎬 Depts{#if deptBlockedCount > 0}<span class="badge danger">{deptBlockedCount}</span>{/if}
         </button>
@@ -139,6 +142,10 @@
 
   {#if tab === 'tomorrow'}
     <DailyBriefing />
+  {:else if tab === 'cast-timer'}
+    <TrackerTab mode="cast" />
+  {:else if tab === 'crew-timer'}
+    <TrackerTab mode="crew" />
   {:else if tab === 'depts'}
     <DeptStatus />
   {:else if tab === 'contacts'}
