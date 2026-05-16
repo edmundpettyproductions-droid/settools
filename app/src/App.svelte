@@ -8,13 +8,14 @@
   import Notes from './components/Notes.svelte';
   import Issues from './components/Issues.svelte';
   import ConflictReview from './components/ConflictReview.svelte';
+  import Sides from './components/Sides.svelte';
   import * as issuesLib from './lib/issues';
   import * as contactsLib from './lib/contacts';
   import * as csLib from './lib/conflictStatus';
 
-  type Tab = 'tomorrow' | 'resources' | 'cast-bible' | 'contacts' | 'notes' | 'issues' | 'conflicts';
+  type Tab = 'tomorrow' | 'sides' | 'resources' | 'cast-bible' | 'contacts' | 'notes' | 'issues' | 'conflicts';
 
-  const ALL_TABS: Tab[] = ['tomorrow', 'contacts', 'conflicts', 'notes', 'issues', 'cast-bible', 'resources'];
+  const ALL_TABS: Tab[] = ['tomorrow', 'sides', 'contacts', 'conflicts', 'notes', 'issues', 'cast-bible', 'resources'];
 
   let hasWorkspace = $state(false);
   let workspaceCode = $state<string | null>(null);
@@ -104,6 +105,7 @@
       <div class="brand">Set Tools <span class="ws">· {workspaceCode}</span></div>
       <div class="tabs">
         <button class:active={tab === 'tomorrow'} onclick={() => tab = 'tomorrow'}>🌅 Tomorrow</button>
+        <button class:active={tab === 'sides'} onclick={() => tab = 'sides'}>📄 Sides</button>
         <button class:active={tab === 'contacts'} onclick={() => tab = 'contacts'}>📞 Contacts</button>
         <button class:active={tab === 'conflicts'} onclick={() => tab = 'conflicts'}>
           🔍 Conflicts{#if conflictUnreviewedCount > 0}<span class="badge">{conflictUnreviewedCount}</span>{/if}
@@ -121,6 +123,8 @@
 
   {#if tab === 'tomorrow'}
     <DailyBriefing />
+  {:else if tab === 'sides'}
+    <Sides />
   {:else if tab === 'contacts'}
     <Contacts />
   {:else if tab === 'conflicts'}
