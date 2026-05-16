@@ -24,6 +24,7 @@ export type Tab =
   | 'walkie'
   | 'cast-bible'
   | 'resources'
+  | 'sides'
   | 'settings';
 
 export const ALL_TABS: readonly Tab[] = [
@@ -48,6 +49,7 @@ export const ALL_TABS: readonly Tab[] = [
   'walkie',
   'cast-bible',
   'resources',
+  'sides',
   'settings',
 ];
 

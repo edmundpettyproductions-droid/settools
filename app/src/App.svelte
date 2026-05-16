@@ -23,6 +23,7 @@
   import WalkieChart from './components/WalkieChart.svelte';
   import BGTracker from './components/BGTracker.svelte';
   import TimeSheetView from './components/TimeSheet.svelte';
+  import Sides from './components/Sides.svelte';
   import * as issuesLib from './lib/issues';
   import * as contactsLib from './lib/contacts';
   import * as csLib from './lib/conflictStatus';
@@ -156,6 +157,7 @@
         <button class:active={tab === 'bg'} onclick={() => tab = 'bg'}><span class="ico">👤</span><span class="lbl">BG</span></button>
         <button class:active={tab === 'dashboard'} onclick={() => tab = 'dashboard'}><span class="ico">⏱</span><span class="lbl">Timers</span></button>
         <button class:active={tab === 'next-call'} onclick={() => tab = 'next-call'}><span class="ico">📋</span><span class="lbl">Next Day</span></button>
+        <button class:active={tab === 'sides'} onclick={() => tab = 'sides'}><span class="ico">📄</span><span class="lbl">Sides</span></button>
       </div>
 
       <div class="nav-group">
@@ -234,6 +236,8 @@
         <CastBible />
       {:else if tab === 'walkie'}
         <WalkieChart />
+      {:else if tab === 'sides'}
+        <Sides />
       {:else if tab === 'settings'}
         <ProjectSettingsView />
       {:else}
