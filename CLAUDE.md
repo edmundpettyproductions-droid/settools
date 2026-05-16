@@ -2,13 +2,13 @@
 
 > This file is auto-loaded at the start of every Claude Code session.
 > Keep it current. When something important is discovered, add it here.
-> Last updated: 2026-05-15 (Session 7 — 22-tab build complete)
+> Last updated: 2026-05-15 (Session 8 — 23-tab build, Sides ported, scene reorder added)
 
 ---
 
 ## What This Project Is
 
-**Set Tools** is a 22-tab 2nd AD / 2nd 2nd AD workstation for film and television production.
+**Set Tools** is a 23-tab 2nd AD / 2nd 2nd AD workstation for film and television production.
 Built as a single-page application with Svelte 5 + Vite + TypeScript, synced across devices via Supabase.
 
 It lives at `C:\Users\edmun\OneDrive\Desktop\Set Tools\`.
@@ -84,6 +84,7 @@ CSS Grid: `grid-template-columns: 56px 1fr; grid-template-rows: auto 1fr;`
 | BG | `BGTracker.svelte` | `settools_bg` | Background/extras — check-in, vouchers, bumps, wardrobe, batch ops |
 | Timers | `TimerDashboard.svelte` | `settools_prod_timers` | Meal penalty countdown, OT tracking, arrival board |
 | Next Day | `NextDayCall.svelte` | `settools_nextcall` | Call sheet builder — scenes, cast calls, crew calls |
+| Sides | `Sides.svelte` | `settools_sides` (IndexedDB: `set-tools-sides`) | Script PDF annotation — target scenes circled, non-target crossed out; 3 output PDFs; cast cross-check |
 
 ### Coordination (5 tabs)
 | Tab | Component | Storage Key | Description |
