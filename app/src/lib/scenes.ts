@@ -107,6 +107,22 @@ export async function saveScenes(data: SceneData): Promise<void> {
   await sync.set(STORAGE_KEY, JSON.stringify(data));
 }
 
+/** Move a scene up one position (toward index 0). No-op at index 0. */
+export function moveUp(rows: SceneRow[], idx: number): void {
+  if (idx <= 0 || idx >= rows.length) return;
+  const tmp = rows[idx - 1]!;
+  rows[idx - 1] = rows[idx]!;
+  rows[idx] = tmp;
+}
+
+/** Move a scene down one position (toward last). No-op at last index. */
+export function moveDown(rows: SceneRow[], idx: number): void {
+  if (idx < 0 || idx >= rows.length - 1) return;
+  const tmp = rows[idx + 1]!;
+  rows[idx + 1] = rows[idx]!;
+  rows[idx] = tmp;
+}
+
 export function mkScene(id: number, partial?: Partial<SceneRow>): SceneRow {
   return {
     id,

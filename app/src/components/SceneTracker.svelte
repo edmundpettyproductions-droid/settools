@@ -148,6 +148,21 @@
     await save();
   }
 
+  // ─── Reorder ───────────────────────────────────────────────────────
+  async function moveSceneUp(row: S.SceneRow) {
+    const idx = rows.findIndex((r) => r.id === row.id);
+    S.moveUp(rows, idx);
+    rows = rows;
+    await save();
+  }
+
+  async function moveSceneDown(row: S.SceneRow) {
+    const idx = rows.findIndex((r) => r.id === row.id);
+    S.moveDown(rows, idx);
+    rows = rows;
+    await save();
+  }
+
   // ─── Context menu ──────────────────────────────────────────────────
   let ctxRow = $state<S.SceneRow | null>(null);
   let ctxX = $state(0);
@@ -181,6 +196,10 @@
 
   // ─── Grid template ─────────────────────────────────────────────────
   const gridTemplate = S.COLS.map((c) => S.COL_WIDTHS[c]).join(' ');
+
+  // Helper: is a row first or last?
+  function isFirst(row: S.SceneRow): boolean { return rows[0]?.id === row.id; }
+  function isLast(row: S.SceneRow): boolean { return rows[rows.length - 1]?.id === row.id; }
 </script>
 
 <svelte:window onclick={closeCtx} />
@@ -245,7 +264,7 @@
     </div>
   {:else if rows.length > 0}
     <div class="grid-scroll">
-      <div class="grid" role="grid" style="grid-template-columns: 40px {gridTemplate} 120px 80px 50px 50px;">
+      <div class="grid" role="grid" style="grid-template-columns: 40px {gridTemplate} 120px 80px 50px 36px 50px;">
         <!-- Header -->
         <div class="grid-header" role="row">
           <span class="gh">#</span>
@@ -255,6 +274,7 @@
           <span class="gh">Status</span>
           <span class="gh">Time</span>
           <span class="gh">Setups</span>
+          <span class="gh" title="Reorder">⇅</span>
           <span class="gh"></span>
         </div>
 
@@ -319,6 +339,24 @@
               <button class="setup-btn" onclick={() => void bumpSetups(row, 1)} title="Increase setups">+</button>
             </span>
 
+            <!-- Reorder -->
+            <span class="reorder-cell">
+              <button
+                class="reorder-btn"
+                onclick={() => void moveSceneUp(row)}
+                disabled={isFirst(row)}
+                title="Move scene up"
+                aria-label="Move scene {row.sceneNum} up"
+              >▲</button>
+              <button
+                class="reorder-btn"
+                onclick={() => void moveSceneDown(row)}
+                disabled={isLast(row)}
+                title="Move scene down"
+                aria-label="Move scene {row.sceneNum} down"
+              >▼</button>
+            </span>
+
             <!-- Actions (delete) -->
             <button class="del-btn" onclick={() => void removeRow(row.id)} title="Remove scene">x</button>
           </div>
@@ -342,6 +380,18 @@
     <button role="menuitem" onclick={() => { if (ctxRow) void resetScene(ctxRow); closeCtx(); }}>
       Reset to Scheduled
     </button>
+    <hr class="ctx-divider" />
+    {#if !isFirst(ctxRow)}
+      <button role="menuitem" onclick={() => { if (ctxRow) void moveSceneUp(ctxRow); closeCtx(); }}>
+        ▲ Move Up
+      </button>
+    {/if}
+    {#if !isLast(ctxRow)}
+      <button role="menuitem" onclick={() => { if (ctxRow) void moveSceneDown(ctxRow); closeCtx(); }}>
+        ▼ Move Down
+      </button>
+    {/if}
+    <hr class="ctx-divider" />
     <button role="menuitem" class="danger" onclick={() => { if (ctxRow) void removeRow(ctxRow.id); closeCtx(); }}>
       Delete Row
     </button>
@@ -638,6 +688,32 @@
     color: var(--text);
   }
 
+  /* ─── Reorder buttons ─── */
+  .reorder-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    border-bottom: 1px solid var(--border);
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .grid-row:hover .reorder-cell { opacity: 1; }
+  .reorder-btn {
+    background: none;
+    border: none;
+    color: var(--text3);
+    font-size: 9px;
+    cursor: pointer;
+    padding: 1px 4px;
+    line-height: 1;
+    transition: color 0.1s;
+    font-family: var(--mono);
+  }
+  .reorder-btn:hover:not(:disabled) { color: var(--accent); }
+  .reorder-btn:disabled { opacity: 0.2; cursor: default; }
+
   /* ─── Delete button ─── */
   .del-btn {
     background: none;
@@ -680,6 +756,7 @@
   }
   .ctx-menu button:hover { background: var(--bg3); }
   .ctx-menu button.danger { color: var(--danger); }
+  .ctx-divider { border: none; border-top: 1px solid var(--border); margin: 3px 0; }
 
   @media (max-width: 640px) {
     .toolbar { padding: 8px 12px; gap: 8px; }

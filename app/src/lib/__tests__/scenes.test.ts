@@ -24,6 +24,8 @@ import {
   mkScene,
   advanceStatus,
   resetStatus,
+  moveUp,
+  moveDown,
   STORAGE_KEY,
 } from '../scenes';
 
@@ -202,6 +204,53 @@ describe('scenes', () => {
       expect(r.firstUp).toBeNull();
       expect(r.wrapped).toBeNull();
       expect(r.setups).toBe(0);
+    });
+  });
+
+  // ─── moveUp / moveDown ────────────────────────────────────────────
+  describe('moveUp', () => {
+    it('swaps row with the one above it', () => {
+      const rows = [mkScene(1, { sceneNum: 'A' }), mkScene(2, { sceneNum: 'B' }), mkScene(3, { sceneNum: 'C' })];
+      moveUp(rows, 1);
+      expect(rows[0]?.sceneNum).toBe('B');
+      expect(rows[1]?.sceneNum).toBe('A');
+      expect(rows[2]?.sceneNum).toBe('C');
+    });
+
+    it('does nothing at index 0', () => {
+      const rows = [mkScene(1, { sceneNum: 'A' }), mkScene(2, { sceneNum: 'B' })];
+      moveUp(rows, 0);
+      expect(rows[0]?.sceneNum).toBe('A');
+      expect(rows[1]?.sceneNum).toBe('B');
+    });
+  });
+
+  describe('moveDown', () => {
+    it('swaps row with the one below it', () => {
+      const rows = [mkScene(1, { sceneNum: 'A' }), mkScene(2, { sceneNum: 'B' }), mkScene(3, { sceneNum: 'C' })];
+      moveDown(rows, 1);
+      expect(rows[0]?.sceneNum).toBe('A');
+      expect(rows[1]?.sceneNum).toBe('C');
+      expect(rows[2]?.sceneNum).toBe('B');
+    });
+
+    it('does nothing at last index', () => {
+      const rows = [mkScene(1, { sceneNum: 'A' }), mkScene(2, { sceneNum: 'B' })];
+      moveDown(rows, 1);
+      expect(rows[0]?.sceneNum).toBe('A');
+      expect(rows[1]?.sceneNum).toBe('B');
+    });
+
+    it('preserves all row data after swap', () => {
+      const rows = [
+        mkScene(1, { sceneNum: '14', pages: '2 3/8', status: 'complete' }),
+        mkScene(2, { sceneNum: '15', pages: '1', status: 'scheduled' }),
+      ];
+      moveDown(rows, 0);
+      expect(rows[0]?.pages).toBe('1');
+      expect(rows[0]?.status).toBe('scheduled');
+      expect(rows[1]?.pages).toBe('2 3/8');
+      expect(rows[1]?.status).toBe('complete');
     });
   });
 
