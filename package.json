@@ -1,0 +1,20 @@
+{
+  "name": "set-tools",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Film production dashboard — call sheets, sign-in kiosk, next-day prep",
+  "scripts": {
+    "dev": "npx http-server -p 8282 -c-1 -a 127.0.0.1 -o /index.html",
+    "dev:py": "python -m http.server 8282 --bind 127.0.0.1",
+    "format": "npx prettier --write \"*.{html,js,css,json,md}\"",
+    "format:check": "npx prettier --check \"*.{html,js,css,json,md}\"",
+    "clean": "echo Remove untracked build artifacts here once we have a build step"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "prettier": "^3.4.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
