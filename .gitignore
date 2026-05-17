@@ -13,5 +13,9 @@ pdf_tmp/
 files/
 PortableGit/
 
-# Claude internal
-.claude/
+# Claude internal — ignore everything except shared skills/commands
+.claude/*
+!.claude/skills/
+!.claude/skills/**
+!.claude/commands/
+!.claude/commands/**

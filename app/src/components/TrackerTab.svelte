@@ -3,6 +3,8 @@
   import * as sync from '../lib/sync';
   import * as T from '../lib/tracker';
   import * as extract from '../lib/extract';
+  import * as N from '../lib/notifications';
+  import * as SMS from '../lib/sms';
 
   // ─── Props ──────────────────────────────────────────────────────────
   let { mode }: { mode: T.TrackerMode } = $props();
@@ -29,6 +31,19 @@
   // Context menu
   let ctxMenu = $state<{ x: number; y: number; rowId: number } | null>(null);
 
+  // Notifications
+  let notifPrefs = $state<N.NotifPrefs>(N.DEFAULT_PREFS);
+  let notifOpen = $state(false);
+  let notifPerm = $state<NotificationPermission>('default');
+  let toast = $state<{ title: string; body: string } | null>(null);
+  let toastTimer: number | undefined;
+  // Dedupe — keys are `${dateStr}:${event}:${id}` so they reset each day
+  const firedKeys = new Set<string>();
+  // Previous arrived state per row id (for arrival edge detection)
+  const prevArrived = new Map<number, boolean>();
+  // Previous "all arrived" state per group key
+  const prevAllArrived = new Map<string, boolean>();
+
   // ─── Derived ────────────────────────────────────────────────────────
   let timerGroups = $derived.by(() => T.buildGroups(rows, warnMinutes * 60000, now));
   let arrivedRows = $derived.by(() =>
@@ -43,8 +58,11 @@
 
   onMount(() => {
     load();
+    notifPrefs = N.loadPrefs(mode);
+    notifPerm = N.permission();
     const unsub = sync.subscribe((keys) => {
       if (keys.includes(cfg.storageKey)) load();
+      if (keys.includes(N.prefsKey(mode))) notifPrefs = N.loadPrefs(mode);
       // Auto-sync arrivals when sign-in kiosk data changes
       if (keys.includes('ST_signin')) {
         const result = T.syncFromKiosk(rows);
@@ -56,8 +74,156 @@
     return () => {
       unsub();
       if (tickTimer !== undefined) clearInterval(tickTimer);
+      if (toastTimer !== undefined) clearTimeout(toastTimer);
     };
   });
+
+  // ─── Notification triggers ──────────────────────────────────────────
+  function showToast(title: string, body: string) {
+    toast = { title, body };
+    if (toastTimer !== undefined) clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => { toast = null; }, 6000);
+  }
+
+  function todayKey(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }
+
+  function fireOnce(key: string, event: { title: string; body: string; vibrationId: string; sms: boolean; smsFrom: N.FromSlot }) {
+    const k = `${todayKey()}:${key}`;
+    if (firedKeys.has(k)) return;
+    firedKeys.add(k);
+    N.fire(notifPrefs, {
+      title: event.title,
+      body: event.body,
+      vibrationId: event.vibrationId,
+      tag: k,
+      sms: event.sms,
+      smsFrom: event.smsFrom,
+    });
+    showToast(event.title, event.body);
+  }
+
+  // Watch tick → evaluate triggers
+  $effect(() => {
+    // Read `now` so this re-runs every second
+    void now;
+    if (!notifPrefs.enabled) return;
+    const label = mode === 'cast' ? 'Cast' : 'Crew';
+
+    // Pre-call + all-arrived per group
+    for (const g of timerGroups) {
+      const gKey = g.effectiveTime + (g.isIsolated ? '-iso-' + (g.members[0]?.id ?? '') : '');
+
+      // Pre-call warning
+      if (notifPrefs.preCallEnabled) {
+        const preMs = notifPrefs.preCallMinutes * 60000;
+        const untilCall = g.countdownMs;
+        if (untilCall > 0 && untilCall <= preMs) {
+          const names = g.members.map(m => m.name).filter(Boolean).join(', ');
+          fireOnce(`pre:${gKey}`, {
+            title: `${label} call in ${notifPrefs.preCallMinutes}m`,
+            body: `${g.effectiveTime} — ${names || g.members.length + ' people'}`,
+            vibrationId: notifPrefs.preCallVibration,
+            sms: notifPrefs.preCallSms,
+            smsFrom: notifPrefs.preCallSmsFrom,
+          });
+        }
+      }
+
+      // All-arrived (only fire on the transition empty → all-in)
+      if (notifPrefs.allArrivedEnabled && g.members.length > 0) {
+        const allIn = g.members.every(m => m.arrived);
+        const wasAllIn = prevAllArrived.get(gKey) ?? false;
+        if (allIn && !wasAllIn) {
+          fireOnce(`all:${gKey}`, {
+            title: `All ${label.toLowerCase()} in @ ${g.effectiveTime}`,
+            body: `${g.members.length} arrived`,
+            vibrationId: notifPrefs.allArrivedVibration,
+            sms: notifPrefs.allArrivedSms,
+            smsFrom: notifPrefs.allArrivedSmsFrom,
+          });
+        }
+        prevAllArrived.set(gKey, allIn);
+      }
+    }
+
+    // Late + arrival (per row)
+    for (const r of rows) {
+      if (!r.name || !r.callTime) continue;
+      const callT = T.parseTimeToday(r.callTime);
+      if (!callT) continue;
+      const sinceCall = now.getTime() - callT.getTime();
+
+      // Late: past call, not arrived, threshold passed
+      if (notifPrefs.lateEnabled && !r.arrived && sinceCall >= notifPrefs.lateMinutes * 60000) {
+        fireOnce(`late:${r.id}`, {
+          title: `LATE: ${r.name}`,
+          body: `Call ${T.fmt12(r.callTime)} — ${notifPrefs.lateMinutes}m past`,
+          vibrationId: notifPrefs.lateVibration,
+          sms: notifPrefs.lateSms,
+          smsFrom: notifPrefs.lateSmsFrom,
+        });
+      }
+
+      // Arrival edge detection
+      const was = prevArrived.get(r.id) ?? false;
+      if (notifPrefs.arrivalEnabled && r.arrived && !was) {
+        fireOnce(`arr:${r.id}`, {
+          title: `Arrived: ${r.name}`,
+          body: `${r.arrivedAt || ''}${r.role ? ' · ' + r.role : ''}`,
+          vibrationId: notifPrefs.arrivalVibration,
+          sms: notifPrefs.arrivalSms,
+          smsFrom: notifPrefs.arrivalSmsFrom,
+        });
+      }
+      prevArrived.set(r.id, r.arrived);
+    }
+  });
+
+  async function savePrefs() {
+    await N.savePrefs(mode, notifPrefs);
+  }
+
+  async function toggleMaster() {
+    notifPrefs.enabled = !notifPrefs.enabled;
+    if (notifPrefs.enabled && notifPrefs.browserEnabled && notifPerm === 'default') {
+      notifPerm = await N.requestPermission();
+    }
+    await savePrefs();
+  }
+
+  async function toggleBrowser() {
+    notifPrefs.browserEnabled = !notifPrefs.browserEnabled;
+    if (notifPrefs.browserEnabled && notifPerm === 'default') {
+      notifPerm = await N.requestPermission();
+    }
+    await savePrefs();
+  }
+
+  function testPattern(vibrationId: string, label: string) {
+    N.test(notifPrefs, vibrationId, label);
+    showToast('Test', label);
+  }
+
+  function normalizePhoneOnBlur() {
+    if (notifPrefs.smsTo) {
+      const cleaned = SMS.normalizeE164(notifPrefs.smsTo);
+      if (cleaned !== notifPrefs.smsTo) notifPrefs.smsTo = cleaned;
+    }
+    void savePrefs();
+  }
+
+  let smsTestStatus = $state<string | null>(null);
+  let smsTestTimer: number | undefined;
+  async function testSmsBtn(fromSlot: N.FromSlot, label: string) {
+    if (smsTestTimer !== undefined) clearTimeout(smsTestTimer);
+    smsTestStatus = `Sending from slot ${fromSlot}...`;
+    const res = await N.testSms(notifPrefs, fromSlot, label);
+    smsTestStatus = res.ok ? `Sent from slot ${fromSlot} ✓` : `Failed: ${res.error}`;
+    smsTestTimer = window.setTimeout(() => { smsTestStatus = null; }, 5000);
+  }
 
   function load() {
     const data = T.loadTracker(cfg.storageKey);
@@ -355,8 +521,8 @@
 
 <!-- Global event handlers -->
 <svelte:window
-  onclick={closeCtx}
-  onkeydown={(e) => { if (e.key === 'Escape') closeCtx(); }}
+  onclick={() => { closeCtx(); notifOpen = false; }}
+  onkeydown={(e) => { if (e.key === 'Escape') { closeCtx(); notifOpen = false; } }}
   onmouseup={() => dragging = false}
 />
 
@@ -370,6 +536,12 @@
       <span class="li">min before call</span>
       <button class="btn btn-a btn-sm" onclick={() => now = new Date()}>Refresh</button>
       <button class="btn btn-sm" onclick={doKioskSync} title="Manual sync from Sign-In Station (auto-sync is on)">↓ Kiosk</button>
+      <button
+        class="btn btn-sm notif-btn"
+        class:active={notifPrefs.enabled}
+        onclick={(e) => { e.stopPropagation(); notifOpen = !notifOpen; }}
+        title="Notification settings"
+      >&#128276; Notifs{notifPrefs.enabled ? ' ON' : ''}</button>
       <button class="btn btn-sm" onclick={clearAll}>Clear All</button>
     </div>
   </div>
@@ -603,6 +775,388 @@
     </div>
   </div>
 </div>
+
+<!-- NOTIFICATION SETTINGS POPOVER -->
+{#if notifOpen}
+  <div
+    class="notif-panel"
+    role="dialog"
+    aria-label="Notification settings"
+    onclick={(e) => e.stopPropagation()}
+    onkeydown={(e) => { if (e.key === 'Escape') notifOpen = false; }}
+    tabindex="-1"
+  >
+    <div class="notif-hdr">
+      <span class="notif-title">{mode === 'cast' ? 'Cast' : 'Crew'} Notifications</span>
+      <button class="notif-x" type="button" onclick={() => notifOpen = false} aria-label="Close">&times;</button>
+    </div>
+
+    <div class="notif-body">
+      <!-- Master row -->
+      <label class="notif-row notif-master">
+        <input type="checkbox" checked={notifPrefs.enabled} onchange={toggleMaster} />
+        <span class="notif-row-label">Enable notifications</span>
+      </label>
+
+      <div class="notif-section">
+        <div class="notif-section-hdr">Channels</div>
+
+        <label class="notif-row">
+          <input
+            type="checkbox"
+            checked={notifPrefs.browserEnabled}
+            onchange={toggleBrowser}
+            disabled={!notifPrefs.enabled}
+          />
+          <span class="notif-row-label">Browser pop-up (when tab unfocused)</span>
+          {#if notifPerm === 'denied'}
+            <span class="notif-warn">blocked in browser</span>
+          {:else if notifPerm === 'default' && notifPrefs.browserEnabled}
+            <span class="notif-warn">tap to grant permission</span>
+          {/if}
+        </label>
+
+        <label class="notif-row">
+          <input
+            type="checkbox"
+            bind:checked={notifPrefs.soundEnabled}
+            onchange={savePrefs}
+            disabled={!notifPrefs.enabled}
+          />
+          <span class="notif-row-label">Sound (ding)</span>
+        </label>
+
+        <label class="notif-row">
+          <input
+            type="checkbox"
+            bind:checked={notifPrefs.vibrateEnabled}
+            onchange={savePrefs}
+            disabled={!notifPrefs.enabled}
+          />
+          <span class="notif-row-label">Vibration</span>
+          {#if !N.canVibrate()}
+            <span class="notif-warn">not supported on iOS Safari</span>
+          {/if}
+        </label>
+
+        <label class="notif-row">
+          <input
+            type="checkbox"
+            bind:checked={notifPrefs.onlyWhenHidden}
+            onchange={savePrefs}
+            disabled={!notifPrefs.enabled}
+          />
+          <span class="notif-row-label">Only fire when tab is hidden</span>
+        </label>
+      </div>
+
+      <!-- SMS (Twilio) -->
+      <div class="notif-section">
+        <div class="notif-section-hdr">
+          <label class="notif-event-toggle">
+            <input
+              type="checkbox"
+              bind:checked={notifPrefs.smsEnabled}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled}
+            />
+            SMS via Twilio
+          </label>
+        </div>
+        <div class="notif-event-controls">
+          <label class="notif-inline notif-phone-row">
+            <span class="notif-phone-lbl">Your phone</span>
+            <input
+              type="tel"
+              class="notif-phone"
+              placeholder="+13105551234"
+              bind:value={notifPrefs.smsTo}
+              onblur={normalizePhoneOnBlur}
+              disabled={!notifPrefs.enabled || !notifPrefs.smsEnabled}
+            />
+          </label>
+          {#if notifPrefs.smsEnabled && notifPrefs.smsTo && !SMS.isValidE164(notifPrefs.smsTo)}
+            <div class="notif-warn-inline">Not valid E.164 — expecting +13105551234</div>
+          {/if}
+          <div class="notif-foot-inline">
+            Each event below can pick a Twilio sender slot (A–D). Save each as a contact in iOS with a unique custom vibration to get per-event patterns.
+          </div>
+          {#if smsTestStatus}
+            <div class="notif-sms-status">{smsTestStatus}</div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Pre-call -->
+      <div class="notif-section">
+        <div class="notif-section-hdr">
+          <label class="notif-event-toggle">
+            <input
+              type="checkbox"
+              bind:checked={notifPrefs.preCallEnabled}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled}
+            />
+            Pre-call warning
+          </label>
+        </div>
+        <div class="notif-event-controls">
+          <label class="notif-inline">
+            <input
+              type="number"
+              min={1}
+              max={120}
+              class="notif-num"
+              bind:value={notifPrefs.preCallMinutes}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled || !notifPrefs.preCallEnabled}
+            />
+            <span>min before call</span>
+          </label>
+          <div class="notif-vib-row">
+            <select
+              bind:value={notifPrefs.preCallVibration}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled || !notifPrefs.preCallEnabled}
+            >
+              {#each N.VIBRATION_PATTERNS as p}
+                <option value={p.id}>{p.label}</option>
+              {/each}
+            </select>
+            <button
+              class="btn btn-sm"
+              type="button"
+              onclick={() => testPattern(notifPrefs.preCallVibration, 'Pre-call')}
+              disabled={!notifPrefs.enabled}
+            >Test</button>
+          </div>
+          <div class="notif-sms-row">
+            <label class="notif-sms-toggle">
+              <input
+                type="checkbox"
+                bind:checked={notifPrefs.preCallSms}
+                onchange={savePrefs}
+                disabled={!notifPrefs.enabled || !notifPrefs.preCallEnabled || !notifPrefs.smsEnabled}
+              />
+              SMS
+            </label>
+            <select
+              bind:value={notifPrefs.preCallSmsFrom}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled || !notifPrefs.preCallEnabled || !notifPrefs.smsEnabled || !notifPrefs.preCallSms}
+            >
+              {#each N.FROM_SLOTS as s}<option value={s}>From {s}</option>{/each}
+            </select>
+            <button
+              class="btn btn-sm"
+              type="button"
+              onclick={() => testSmsBtn(notifPrefs.preCallSmsFrom, 'Pre-call')}
+              disabled={!notifPrefs.enabled || !notifPrefs.smsEnabled || !notifPrefs.smsTo}
+            >Send test</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Late -->
+      <div class="notif-section">
+        <div class="notif-section-hdr">
+          <label class="notif-event-toggle">
+            <input
+              type="checkbox"
+              bind:checked={notifPrefs.lateEnabled}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled}
+            />
+            Late warning
+          </label>
+        </div>
+        <div class="notif-event-controls">
+          <label class="notif-inline">
+            <input
+              type="number"
+              min={1}
+              max={120}
+              class="notif-num"
+              bind:value={notifPrefs.lateMinutes}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled || !notifPrefs.lateEnabled}
+            />
+            <span>min past call &amp; not arrived</span>
+          </label>
+          <div class="notif-vib-row">
+            <select
+              bind:value={notifPrefs.lateVibration}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled || !notifPrefs.lateEnabled}
+            >
+              {#each N.VIBRATION_PATTERNS as p}
+                <option value={p.id}>{p.label}</option>
+              {/each}
+            </select>
+            <button
+              class="btn btn-sm"
+              type="button"
+              onclick={() => testPattern(notifPrefs.lateVibration, 'Late warning')}
+              disabled={!notifPrefs.enabled}
+            >Test</button>
+          </div>
+          <div class="notif-sms-row">
+            <label class="notif-sms-toggle">
+              <input
+                type="checkbox"
+                bind:checked={notifPrefs.lateSms}
+                onchange={savePrefs}
+                disabled={!notifPrefs.enabled || !notifPrefs.lateEnabled || !notifPrefs.smsEnabled}
+              />
+              SMS
+            </label>
+            <select
+              bind:value={notifPrefs.lateSmsFrom}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled || !notifPrefs.lateEnabled || !notifPrefs.smsEnabled || !notifPrefs.lateSms}
+            >
+              {#each N.FROM_SLOTS as s}<option value={s}>From {s}</option>{/each}
+            </select>
+            <button
+              class="btn btn-sm"
+              type="button"
+              onclick={() => testSmsBtn(notifPrefs.lateSmsFrom, 'Late')}
+              disabled={!notifPrefs.enabled || !notifPrefs.smsEnabled || !notifPrefs.smsTo}
+            >Send test</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrival -->
+      <div class="notif-section">
+        <div class="notif-section-hdr">
+          <label class="notif-event-toggle">
+            <input
+              type="checkbox"
+              bind:checked={notifPrefs.arrivalEnabled}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled}
+            />
+            On arrival (each person)
+          </label>
+        </div>
+        <div class="notif-event-controls">
+          <div class="notif-vib-row">
+            <select
+              bind:value={notifPrefs.arrivalVibration}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled || !notifPrefs.arrivalEnabled}
+            >
+              {#each N.VIBRATION_PATTERNS as p}
+                <option value={p.id}>{p.label}</option>
+              {/each}
+            </select>
+            <button
+              class="btn btn-sm"
+              type="button"
+              onclick={() => testPattern(notifPrefs.arrivalVibration, 'Arrival')}
+              disabled={!notifPrefs.enabled}
+            >Test</button>
+          </div>
+          <div class="notif-sms-row">
+            <label class="notif-sms-toggle">
+              <input
+                type="checkbox"
+                bind:checked={notifPrefs.arrivalSms}
+                onchange={savePrefs}
+                disabled={!notifPrefs.enabled || !notifPrefs.arrivalEnabled || !notifPrefs.smsEnabled}
+              />
+              SMS
+            </label>
+            <select
+              bind:value={notifPrefs.arrivalSmsFrom}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled || !notifPrefs.arrivalEnabled || !notifPrefs.smsEnabled || !notifPrefs.arrivalSms}
+            >
+              {#each N.FROM_SLOTS as s}<option value={s}>From {s}</option>{/each}
+            </select>
+            <button
+              class="btn btn-sm"
+              type="button"
+              onclick={() => testSmsBtn(notifPrefs.arrivalSmsFrom, 'Arrival')}
+              disabled={!notifPrefs.enabled || !notifPrefs.smsEnabled || !notifPrefs.smsTo}
+            >Send test</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- All arrived -->
+      <div class="notif-section">
+        <div class="notif-section-hdr">
+          <label class="notif-event-toggle">
+            <input
+              type="checkbox"
+              bind:checked={notifPrefs.allArrivedEnabled}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled}
+            />
+            All arrived (whole group in)
+          </label>
+        </div>
+        <div class="notif-event-controls">
+          <div class="notif-vib-row">
+            <select
+              bind:value={notifPrefs.allArrivedVibration}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled || !notifPrefs.allArrivedEnabled}
+            >
+              {#each N.VIBRATION_PATTERNS as p}
+                <option value={p.id}>{p.label}</option>
+              {/each}
+            </select>
+            <button
+              class="btn btn-sm"
+              type="button"
+              onclick={() => testPattern(notifPrefs.allArrivedVibration, 'All arrived')}
+              disabled={!notifPrefs.enabled}
+            >Test</button>
+          </div>
+          <div class="notif-sms-row">
+            <label class="notif-sms-toggle">
+              <input
+                type="checkbox"
+                bind:checked={notifPrefs.allArrivedSms}
+                onchange={savePrefs}
+                disabled={!notifPrefs.enabled || !notifPrefs.allArrivedEnabled || !notifPrefs.smsEnabled}
+              />
+              SMS
+            </label>
+            <select
+              bind:value={notifPrefs.allArrivedSmsFrom}
+              onchange={savePrefs}
+              disabled={!notifPrefs.enabled || !notifPrefs.allArrivedEnabled || !notifPrefs.smsEnabled || !notifPrefs.allArrivedSms}
+            >
+              {#each N.FROM_SLOTS as s}<option value={s}>From {s}</option>{/each}
+            </select>
+            <button
+              class="btn btn-sm"
+              type="button"
+              onclick={() => testSmsBtn(notifPrefs.allArrivedSmsFrom, 'All arrived')}
+              disabled={!notifPrefs.enabled || !notifPrefs.smsEnabled || !notifPrefs.smsTo}
+            >Send test</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="notif-foot">
+        iOS note: in-tab vibration is not supported on Safari. Use SMS with per-slot iOS contact vibrations for off-tab delivery to your phone.
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- TOAST -->
+{#if toast}
+  <div class="st-toast" role="status">
+    <div class="st-toast-title">{toast.title}</div>
+    {#if toast.body}<div class="st-toast-body">{toast.body}</div>{/if}
+  </div>
+{/if}
 
 <!-- CONTEXT MENU (arrival log right-click) -->
 {#if ctxMenu}
@@ -1077,6 +1631,279 @@
   .ctx-item:hover { background: var(--bg4); color: var(--text); }
   .ctx-item.ctx-danger { color: var(--danger); }
   .ctx-sep { height: 1px; background: var(--border); margin: 3px 0; }
+
+  /* ── Notifications: header button ── */
+  .notif-btn.active {
+    background: rgba(167, 139, 250, 0.18);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ── Notifications: popover ── */
+  .notif-panel {
+    position: fixed;
+    top: 56px;
+    right: 16px;
+    z-index: 3000;
+    width: 360px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+    outline: none;
+  }
+  .notif-hdr {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .notif-title {
+    font-family: var(--cond);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .notif-x {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text3);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+  }
+  .notif-x:hover { color: var(--text); }
+
+  .notif-body { padding: 8px 14px 14px; }
+
+  .notif-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .notif-row input[type="checkbox"] {
+    width: 14px; height: 14px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .notif-row input[disabled] { cursor: not-allowed; opacity: 0.5; }
+  .notif-row-label { flex: 1; }
+  .notif-master { font-weight: 600; color: var(--text); padding: 8px 0; }
+
+  .notif-warn {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .notif-section {
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+  .notif-section-hdr {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 4px;
+  }
+  .notif-event-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-family: var(--cond);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.04em;
+    text-transform: none;
+  }
+  .notif-event-toggle input[type="checkbox"] {
+    width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer;
+  }
+  .notif-event-controls {
+    padding: 6px 0 4px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .notif-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text2);
+  }
+  .notif-num {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 3px 8px;
+    width: 56px;
+    text-align: center;
+    outline: none;
+  }
+  .notif-num:focus { border-color: var(--accent); }
+  .notif-num:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .notif-vib-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .notif-vib-row select {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 11px;
+    padding: 4px 6px;
+    outline: none;
+    cursor: pointer;
+  }
+  .notif-vib-row select:focus { border-color: var(--accent); }
+  .notif-vib-row select:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .notif-foot {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    line-height: 1.5;
+  }
+
+  /* ── SMS sub-controls ── */
+  .notif-phone-row { width: 100%; }
+  .notif-phone-lbl {
+    font-size: 11px;
+    color: var(--text2);
+    width: 76px;
+    flex-shrink: 0;
+  }
+  .notif-phone {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 4px 8px;
+    outline: none;
+  }
+  .notif-phone:focus { border-color: var(--accent); }
+  .notif-phone:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .notif-warn-inline {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--danger);
+  }
+  .notif-foot-inline {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    line-height: 1.45;
+  }
+  .notif-sms-status {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    padding: 4px 0;
+  }
+
+  .notif-sms-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 4px;
+  }
+  .notif-sms-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text2);
+    cursor: pointer;
+  }
+  .notif-sms-toggle input[type="checkbox"] {
+    width: 13px; height: 13px; accent-color: var(--accent); cursor: pointer;
+  }
+  .notif-sms-row select {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 11px;
+    padding: 3px 6px;
+    outline: none;
+    cursor: pointer;
+    min-width: 72px;
+  }
+  .notif-sms-row select:focus { border-color: var(--accent); }
+  .notif-sms-row select:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── In-app toast ── */
+  .st-toast {
+    position: fixed;
+    bottom: 18px;
+    right: 18px;
+    z-index: 4000;
+    background: var(--bg3);
+    border: 1px solid var(--accent);
+    border-left: 3px solid var(--accent);
+    border-radius: 5px;
+    padding: 10px 16px;
+    min-width: 220px;
+    max-width: 360px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    animation: toast-in 0.18s ease-out;
+  }
+  .st-toast-title {
+    font-family: var(--cond);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 3px;
+  }
+  .st-toast-body {
+    font-size: 12px;
+    color: var(--text);
+  }
+  @keyframes toast-in {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
 
   /* ── Responsive ── */
   @media (max-width: 768px) {
