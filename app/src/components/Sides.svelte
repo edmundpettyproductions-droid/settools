@@ -329,6 +329,7 @@
       setProgress('annotate', 'running', 'Building annotated PDFs…');
       const annotated = await buildAnnotatedPdfs(
         scriptBuf, pagePlan, index, foundNums, shootOrderNums,
+        (msg) => setProgress('annotate', 'running', msg),
       );
       scriptOrderBytes = annotated.scriptOrderBytes;
       shootOrderBytes  = annotated.shootOrderBytes;
@@ -377,7 +378,7 @@
     const base = (scriptMeta?.filename ?? 'script')
       .replace(/\.pdf$/i, '')
       .replace(/[^a-z0-9_\-]/gi, '-');
-    const blob = new Blob([bytes as unknown as Uint8Array<ArrayBuffer>], { type: 'application/pdf' });
+    const blob = new Blob([bytes], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
