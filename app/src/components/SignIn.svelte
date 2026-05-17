@@ -151,27 +151,6 @@
     confirmingPerson = null;
   }
 
-  async function confirmSignIn() {
-    if (!confirmingPerson) return;
-    const person = confirmingPerson;
-    const timeStr = nowDisplay();
-    records.push({
-      name: person.name,
-      role: person.role,
-      callTime: person.callTime,
-      signedAt: timeStr,
-      signedOutAt: null,
-      timestamp: Date.now(),
-      sig: null,
-    });
-    records = records; // trigger reactivity
-    confirmingPerson = null;
-    await saveState();
-
-    // Show success flash
-    showSuccess(person.name, timeStr, 'in');
-  }
-
   async function doSignOut(person: SignInPerson) {
     const rec = findRecord(person.name);
     if (!rec || rec.signedOutAt) return;
@@ -189,7 +168,6 @@
   }
 
   // ─── Grid layout ───────────────────────────────────────────────────
-  // Compute adaptive grid columns based on count
   let gridCols = $derived.by(() => {
     const n = people.length;
     if (n <= 4) return 2;
@@ -197,6 +175,89 @@
     if (n <= 16) return 4;
     return Math.ceil(Math.sqrt(n));
   });
+
+  // ─── Signature canvas ───────────────────────────────────────────────
+  let sigCanvas = $state<HTMLCanvasElement | null>(null);
+  let sigDrawing = false;
+  let sigHasData = $state(false);
+
+  function sigGetCtx() {
+    return sigCanvas?.getContext('2d') ?? null;
+  }
+
+  function sigClear() {
+    const ctx = sigGetCtx();
+    if (!ctx || !sigCanvas) return;
+    ctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+    sigHasData = false;
+  }
+
+  function sigPointerDown(e: PointerEvent) {
+    if (!sigCanvas) return;
+    sigDrawing = true;
+    sigCanvas.setPointerCapture(e.pointerId);
+    const ctx = sigGetCtx();
+    if (!ctx) return;
+    const { x, y } = sigPos(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  }
+
+  function sigPointerMove(e: PointerEvent) {
+    if (!sigDrawing) return;
+    const ctx = sigGetCtx();
+    if (!ctx) return;
+    const { x, y } = sigPos(e);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    sigHasData = true;
+  }
+
+  function sigPointerUp() { sigDrawing = false; }
+
+  function sigPos(e: PointerEvent) {
+    if (!sigCanvas) return { x: 0, y: 0 };
+    const rect = sigCanvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (sigCanvas.width / rect.width),
+      y: (e.clientY - rect.top) * (sigCanvas.height / rect.height),
+    };
+  }
+
+  function sigToDataURL(): string | null {
+    if (!sigCanvas || !sigHasData) return null;
+    return sigCanvas.toDataURL('image/png');
+  }
+
+  // ─── Updated confirmSignIn with signature ───────────────────────────
+  async function confirmSignInWithSig() {
+    if (!confirmingPerson) return;
+    const person = confirmingPerson;
+    const timeStr = nowDisplay();
+    records.push({
+      name: person.name,
+      role: person.role,
+      callTime: person.callTime,
+      signedAt: timeStr,
+      signedOutAt: null,
+      timestamp: Date.now(),
+      sig: sigToDataURL(),
+    });
+    records = records;
+    confirmingPerson = null;
+    sigClear(); // clear canvas so next person's signature starts fresh
+    await saveState();
+    showSuccess(person.name, timeStr, 'in');
+  }
+
+  // ─── Print export ───────────────────────────────────────────────────
+  function printSignInSheet() {
+    window.print();
+  }
 </script>
 
 <div class="signin-tab" class:kiosk>
@@ -206,6 +267,49 @@
     <span class="si-info">
       {show || 'Set Tools'} · {dateStr || 'Today'} · {signedCount}/{totalCount} signed in
     </span>
+    <button class="si-print-btn" onclick={printSignInSheet} title="Print sign-in sheet with signatures">🖨 Print</button>
+  </div>
+
+  <!-- PRINT-ONLY TABLE (hidden on screen, shown when printing) -->
+  <div class="si-print-only">
+    <div class="si-print-hdr">
+      <h1>{show || 'Production'} — Sign-In Sheet</h1>
+      <p>{dateStr || 'Date'}</p>
+    </div>
+    <table class="si-print-table">
+      <thead><tr>
+        <th>#</th><th>Name</th><th>Role</th><th>Call</th><th>Signed In</th><th>Signed Out</th><th>Signature</th>
+      </tr></thead>
+      <tbody>
+        {#each records as r, i (r.name + r.timestamp)}
+          <tr>
+            <td>{i + 1}</td>
+            <td>{r.name}</td>
+            <td>{r.role || ''}</td>
+            <td>{r.callTime || ''}</td>
+            <td>{r.signedAt}</td>
+            <td>{r.signedOutAt || ''}</td>
+            <td>
+              {#if r.sig}
+                <img src={r.sig} alt="signature" class="si-print-sig" />
+              {:else}
+                <span class="si-print-nosig">—</span>
+              {/if}
+            </td>
+          </tr>
+        {/each}
+        {#each people.filter(p => !records.some(r => r.name === p.name)) as p (p.name + p.source)}
+          <tr class="si-print-unsigned">
+            <td></td>
+            <td>{p.name}</td>
+            <td>{p.role || ''}</td>
+            <td>{p.callTime || ''}</td>
+            <td colspan="3"></td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+    <div class="si-print-footer">Printed from Set Tools · {new Date().toLocaleString()}</div>
   </div>
 
   <!-- GRID -->
@@ -277,10 +381,30 @@
           </div>
         {/if}
       </div>
+
+      <!-- Signature pad -->
       <p class="si-confirm-prompt">{settings.sigPrompt}</p>
+      <div class="si-sig-wrap">
+        <canvas
+          bind:this={sigCanvas}
+          class="si-sig-canvas"
+          width="400"
+          height="120"
+          aria-label="Signature pad — draw your signature here"
+          onpointerdown={sigPointerDown}
+          onpointermove={sigPointerMove}
+          onpointerup={sigPointerUp}
+          onpointerleave={sigPointerUp}
+        ></canvas>
+        <div class="si-sig-bar">
+          <span class="si-sig-hint">{sigHasData ? '✓ Signature captured' : 'Draw signature above (optional)'}</span>
+          <button class="si-sig-clear" type="button" onclick={sigClear} disabled={!sigHasData}>Clear</button>
+        </div>
+      </div>
+
       <div class="si-confirm-btns">
         <button class="si-btn ghost" type="button" onclick={cancelConfirm}>Cancel</button>
-        <button class="si-btn confirm" type="button" onclick={() => void confirmSignIn()}>
+        <button class="si-btn confirm" type="button" onclick={() => void confirmSignInWithSig()}>
           Confirm Sign-In
         </button>
       </div>
@@ -588,6 +712,94 @@
     font-size: 14px;
     color: var(--text2);
   }
+
+  /* Print button */
+  .si-print-btn {
+    margin-left: auto;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    color: var(--text2);
+    font-size: 12px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .si-print-btn:hover { background: var(--bg4); color: var(--text); }
+
+  /* Print-only table (hidden on screen) */
+  .si-print-only { display: none; }
+  @media print {
+    .signin-tab > :not(.si-print-only) { display: none !important; }
+    .si-print-only {
+      display: block;
+      font-family: Arial, sans-serif;
+      color: #000;
+      padding: 20px;
+    }
+    .si-print-hdr { text-align: center; margin-bottom: 16px; }
+    .si-print-hdr h1 { font-size: 20px; margin: 0 0 4px; }
+    .si-print-hdr p { font-size: 13px; color: #555; margin: 0; }
+    .si-print-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .si-print-table th, .si-print-table td {
+      border: 1px solid #ccc;
+      padding: 5px 8px;
+      text-align: left;
+    }
+    .si-print-table th { background: #f0f0f0; font-weight: 700; }
+    .si-print-unsigned { color: #888; }
+    .si-print-sig { height: 40px; max-width: 120px; display: block; }
+    .si-print-nosig { color: #bbb; }
+    .si-print-footer { margin-top: 12px; font-size: 10px; color: #888; text-align: center; }
+  }
+
+  /* Signature pad */
+  .si-sig-wrap {
+    margin-top: 12px;
+    background: var(--bg3);
+    border: 2px solid var(--border2);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .si-sig-canvas {
+    display: block;
+    width: 100%;
+    height: 120px;
+    cursor: crosshair;
+    touch-action: none;
+    background: var(--bg3);
+  }
+  .si-sig-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 10px;
+    border-top: 1px solid var(--border);
+    background: var(--bg2);
+  }
+  .si-sig-hint {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.04em;
+  }
+  .si-sig-clear {
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    color: var(--text3);
+    font-size: 10px;
+    padding: 2px 8px;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s;
+    font-family: var(--mono);
+  }
+  .si-sig-clear:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
+  .si-sig-clear:disabled { opacity: 0.35; cursor: default; }
 
   /* Responsive */
   @media (max-width: 640px) {

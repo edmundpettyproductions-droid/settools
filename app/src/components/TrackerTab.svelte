@@ -36,6 +36,18 @@
       .sort((a, b) => (a.arrivedAt || '99:99').localeCompare(b.arrivedAt || '99:99'))
   );
   let arrivedCount = $derived(arrivedRows.length);
+  let namedRows = $derived(rows.filter(r => r.name));
+  let allArrived = $derived(namedRows.length > 0 && namedRows.every(r => r.arrived));
+  let timersCollapsed = $state(false);
+
+  // Inline arrival-time editing
+  let editingArrivalId = $state<number | null>(null);
+  let arrivalEditVal = $state('');
+
+  // Inline meal time editing
+  let editingMealId = $state<number | null>(null);
+  let editingMealField = $state<'mealOut' | 'mealIn'>('mealOut');
+  let mealEditVal = $state('');
 
   // ─── Lifecycle ──────────────────────────────────────────────────────
   let tickTimer: number | undefined;
@@ -221,6 +233,64 @@
     void save();
   }
 
+  function markAllArrived() {
+    const t = T.nowHHMM();
+    for (const row of rows) {
+      if (row.name && !row.arrived) {
+        row.arrived = true;
+        row.arrivedAt = t;
+      }
+    }
+    void save();
+  }
+
+  // ─── Inline arrival time edit ────────────────────────────────────────
+  function startArrivalEdit(rowId: number, currentVal: string) {
+    editingArrivalId = rowId;
+    arrivalEditVal = currentVal;
+  }
+
+  function commitArrivalEdit() {
+    if (editingArrivalId === null) return;
+    const row = rows.find(r => r.id === editingArrivalId);
+    if (row) {
+      const normed = T.normTime(arrivalEditVal.trim());
+      row.arrivedAt = normed || arrivalEditVal.trim();
+      void save();
+    }
+    editingArrivalId = null;
+    arrivalEditVal = '';
+  }
+
+  function cancelArrivalEdit() {
+    editingArrivalId = null;
+    arrivalEditVal = '';
+  }
+
+  // ─── Inline meal time edit ───────────────────────────────────────────
+  function startMealEdit(rowId: number, field: 'mealOut' | 'mealIn', currentVal: string) {
+    editingMealId = rowId;
+    editingMealField = field;
+    mealEditVal = currentVal;
+  }
+
+  function commitMealEdit() {
+    if (editingMealId === null) return;
+    const row = rows.find(r => r.id === editingMealId);
+    if (row) {
+      const normed = T.normTime(mealEditVal.trim());
+      row[editingMealField] = normed || mealEditVal.trim();
+      void save();
+    }
+    editingMealId = null;
+    mealEditVal = '';
+  }
+
+  function cancelMealEdit() {
+    editingMealId = null;
+    mealEditVal = '';
+  }
+
   // ─── Arrival Log: context menu actions ──────────────────────────────
   function openCtx(e: MouseEvent, rowId: number) {
     e.preventDefault();
@@ -274,8 +344,30 @@
     closeCtx();
   }
 
+  function ctxMealOut() {
+    if (!ctxMenu) return;
+    const row = rows.find(r => r.id === ctxMenu!.rowId);
+    if (!row) { closeCtx(); return; }
+    const mt = prompt(`Meal out time for ${row.name} (HH:MM):`, T.nowHHMM());
+    if (mt === null) { closeCtx(); return; }
+    row.mealOut = T.normTime(mt) || mt;
+    void save();
+    closeCtx();
+  }
+
+  function ctxMealIn() {
+    if (!ctxMenu) return;
+    const row = rows.find(r => r.id === ctxMenu!.rowId);
+    if (!row) { closeCtx(); return; }
+    const mt = prompt(`Meal in time for ${row.name} (HH:MM):`, T.nowHHMM());
+    if (mt === null) { closeCtx(); return; }
+    row.mealIn = T.normTime(mt) || mt;
+    void save();
+    closeCtx();
+  }
+
   // ─── PDF upload ─────────────────────────────────────────────────────
-  let fileInput: HTMLInputElement | undefined;
+  let fileInput = $state<HTMLInputElement | undefined>(undefined);
 
   async function handlePdf(file: File) {
     pdfStatus = { type: 'loading', msg: 'Reading PDF...' };
@@ -342,6 +434,9 @@
     void save();
   }
 
+  // ─── Svelte actions ─────────────────────────────────────────────────
+  function focus(node: HTMLElement) { node.focus(); }
+
   // ─── Helpers for arrival status ─────────────────────────────────────
   function isOnTime(r: T.TrackerRow): boolean {
     const callT = T.parseTimeToday(r.callTime);
@@ -369,6 +464,7 @@
       <input type="number" class="warn-input" bind:value={warnMinutes} min={0} max={120}>
       <span class="li">min before call</span>
       <button class="btn btn-a btn-sm" onclick={() => now = new Date()}>Refresh</button>
+      <button class="btn btn-sm btn-mark-all" onclick={markAllArrived} title="Mark all named people as arrived now">✓ Mark All</button>
       <button class="btn btn-sm" onclick={doKioskSync} title="Manual sync from Sign-In Station (auto-sync is on)">↓ Kiosk</button>
       <button class="btn btn-sm" onclick={clearAll}>Clear All</button>
     </div>
@@ -490,7 +586,7 @@
               type="file"
               accept=".pdf"
               onchange={onFileChange}
-              style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"
+              style="display:none"
             />
             <div class="pdf-icon">&#128196;</div>
             <div class="pdf-zone-text">
@@ -512,47 +608,67 @@
     <div class="panel">
       <div class="ph2">
         <span class="pt">Timers</span>
-        <span class="hint-txt">click chip = mark arrival</span>
+        {#if allArrived}
+          <span class="all-arrived-badge">✓ ALL ARRIVED</span>
+          <button
+            class="collapse-btn"
+            onclick={() => timersCollapsed = !timersCollapsed}
+            title={timersCollapsed ? 'Expand timer view' : 'Collapse timer view'}
+          >{timersCollapsed ? '▼ Expand' : '▲ Collapse'}</button>
+        {:else}
+          <span class="hint-txt">click chip = mark arrival</span>
+        {/if}
       </div>
       <div class="pb">
-        <div class="tw">
-          {#if timerGroups.length === 0}
-            <div class="nt">Enter call times to see countdowns</div>
-          {:else}
-            {#each timerGroups as group (group.effectiveTime + (group.isIsolated ? '-iso-' + group.members[0]?.id : ''))}
-              {@const displayMs = group.status === 'upcoming' ? group.warnCountdownMs : group.countdownMs}
-              {@const callH = group.time.getHours()}
-              {@const callM = group.time.getMinutes()}
-              <div class="tc-card {group.status}">
-                <div class="tc-head">
-                  <span class="tc-ct12">{T.fmt12h(callH, callM)}</span>
-                  <span class="tc-ct24">{String(callH).padStart(2,'0')}:{String(callM).padStart(2,'0')}</span>
-                  <div class="tc-badge {group.status}">
-                    {group.status === 'past' ? 'CALLED' : group.status === 'warning' ? 'WARN' : 'UPCOMING'}
+        {#if allArrived && timersCollapsed}
+          <div class="all-arrived-panel">
+            <div class="all-arrived-icon">✓</div>
+            <div class="all-arrived-text">
+              <strong>{arrivedCount} of {namedRows.length} arrived</strong>
+              <span>All call times cleared</span>
+            </div>
+            <button class="btn btn-sm" onclick={() => timersCollapsed = false}>View Timers</button>
+          </div>
+        {:else}
+          <div class="tw">
+            {#if timerGroups.length === 0}
+              <div class="nt">Enter call times to see countdowns</div>
+            {:else}
+              {#each timerGroups as group (group.effectiveTime + (group.isIsolated ? '-iso-' + group.members[0]?.id : ''))}
+                {@const displayMs = group.status === 'upcoming' ? group.warnCountdownMs : group.countdownMs}
+                {@const callH = group.time.getHours()}
+                {@const callM = group.time.getMinutes()}
+                <div class="tc-card {group.status}">
+                  <div class="tc-head">
+                    <span class="tc-ct12">{T.fmt12h(callH, callM)}</span>
+                    <span class="tc-ct24">{String(callH).padStart(2,'0')}:{String(callM).padStart(2,'0')}</span>
+                    <div class="tc-badge {group.status}">
+                      {group.status === 'past' ? 'CALLED' : group.status === 'warning' ? 'WARN' : 'UPCOMING'}
+                    </div>
+                    {#if group.isIsolated}<span class="tc-iso">ISO</span>{/if}
                   </div>
-                  {#if group.isIsolated}<span class="tc-iso">ISO</span>{/if}
+                  <div class="tc-chips">
+                    {#each group.members as m (m.id)}
+                      {@const chipState = m.arrived ? 'arrived' : group.status === 'past' ? 'missing' : group.status === 'warning' ? 'warn' : ''}
+                      <button
+                        class="tc-chip {chipState}"
+                        onclick={() => toggleArrival(m.id)}
+                        title={m.arrived ? 'Click to unarrive' : 'Click to mark arrived'}
+                      >
+                        {m.arrived ? '&#10003; ' : ''}{m.name}{#if m.arrived && m.arrivedAt}{' '}&#183; {m.arrivedAt}{/if}
+                        {#if m.role}<span class="tc-chip-role">{m.role}</span>{/if}
+                      </button>
+                    {/each}
+                  </div>
+                  <div class="tc-foot">
+                    <span class="tc-cd-lbl">{group.status === 'past' ? 'after call' : 'until call'}</span>
+                    <span class="tc-cd {group.status}">{T.fmtMs(displayMs)}</span>
+                  </div>
                 </div>
-                <div class="tc-chips">
-                  {#each group.members as m (m.id)}
-                    {@const chipState = m.arrived ? 'arrived' : group.status === 'past' ? 'missing' : group.status === 'warning' ? 'warn' : ''}
-                    <button
-                      class="tc-chip {chipState}"
-                      onclick={() => toggleArrival(m.id)}
-                      title={m.arrived ? 'Click to unarrive' : 'Click to mark arrived'}
-                    >
-                      {m.arrived ? '&#10003; ' : ''}{m.name}{#if m.arrived && m.arrivedAt}{' '}&#183; {m.arrivedAt}{/if}
-                      {#if m.role}<span class="tc-chip-role">{m.role}</span>{/if}
-                    </button>
-                  {/each}
-                </div>
-                <div class="tc-foot">
-                  <span class="tc-cd-lbl">{group.status === 'past' ? 'after call' : 'until call'}</span>
-                  <span class="tc-cd {group.status}">{T.fmtMs(displayMs)}</span>
-                </div>
-              </div>
-            {/each}
-          {/if}
-        </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
       </div>
     </div>
   </div>
@@ -561,6 +677,7 @@
   <div class="arr-section">
     <div class="arr-hdr">
       <span class="pt">Arrival Log</span>
+      <span class="arr-hint">click arrived time to edit</span>
       <span class="arr-count">{arrivedCount} arrived</span>
     </div>
     <div class="arr-scroll">
@@ -569,7 +686,7 @@
       {:else}
         <table class="arr-table">
           <thead><tr>
-            <th>Name</th><th>Role</th><th>Call</th><th>Arrived</th><th>Adj</th><th>Status</th>
+            <th>Name</th><th>Role</th><th>Call</th><th>Arrived</th><th>M-Out</th><th>M-In</th><th>Adj</th><th>Status</th>
           </tr></thead>
           <tbody>
             {#each arrivedRows as r (r.id)}
@@ -577,7 +694,83 @@
                 <td class="name-cell">{r.name}</td>
                 <td>{r.role || ''}</td>
                 <td class="mono">{T.fmt12(r.callTime)}</td>
-                <td class="mono">{T.fmt12(r.arrivedAt)}</td>
+                <td class="mono arr-time-cell">
+                  {#if editingArrivalId === r.id}
+                    <input
+                      class="arr-time-input"
+                      type="text"
+                      bind:value={arrivalEditVal}
+                      placeholder="HH:MM"
+                      onkeydown={(e) => {
+                        if (e.key === 'Enter') { commitArrivalEdit(); }
+                        if (e.key === 'Escape') { cancelArrivalEdit(); }
+                      }}
+                      onblur={() => setTimeout(commitArrivalEdit, 80)}
+                      use:focus
+                    />
+                  {:else}
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_interactive_supports_focus -->
+                    <span
+                      class="arr-time-val"
+                      role="button"
+                      onclick={() => startArrivalEdit(r.id, r.arrivedAt)}
+                      title="Click to edit arrival time"
+                    >{T.fmt12(r.arrivedAt)}</span>
+                  {/if}
+                </td>
+                <!-- Meal Out -->
+                <td class="mono arr-time-cell">
+                  {#if editingMealId === r.id && editingMealField === 'mealOut'}
+                    <input
+                      class="arr-time-input"
+                      type="text"
+                      bind:value={mealEditVal}
+                      placeholder="HH:MM"
+                      onkeydown={(e) => {
+                        if (e.key === 'Enter') commitMealEdit();
+                        if (e.key === 'Escape') cancelMealEdit();
+                      }}
+                      onblur={() => setTimeout(commitMealEdit, 80)}
+                      use:focus
+                    />
+                  {:else}
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_interactive_supports_focus -->
+                    <span
+                      class="arr-time-val meal-val"
+                      role="button"
+                      onclick={() => startMealEdit(r.id, 'mealOut', r.mealOut)}
+                      title="Click to set meal out time"
+                    >{r.mealOut ? T.fmt12(r.mealOut) : '—'}</span>
+                  {/if}
+                </td>
+                <!-- Meal In -->
+                <td class="mono arr-time-cell">
+                  {#if editingMealId === r.id && editingMealField === 'mealIn'}
+                    <input
+                      class="arr-time-input"
+                      type="text"
+                      bind:value={mealEditVal}
+                      placeholder="HH:MM"
+                      onkeydown={(e) => {
+                        if (e.key === 'Enter') commitMealEdit();
+                        if (e.key === 'Escape') cancelMealEdit();
+                      }}
+                      onblur={() => setTimeout(commitMealEdit, 80)}
+                      use:focus
+                    />
+                  {:else}
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_interactive_supports_focus -->
+                    <span
+                      class="arr-time-val meal-val"
+                      role="button"
+                      onclick={() => startMealEdit(r.id, 'mealIn', r.mealIn)}
+                      title="Click to set meal in time"
+                    >{r.mealIn ? T.fmt12(r.mealIn) : '—'}</span>
+                  {/if}
+                </td>
                 <td>
                   {#if r.adjMins}
                     <span class="arr-adj" title={r.adjNote || 'adjustment'}>
@@ -615,6 +808,8 @@
     onkeydown={(e) => { if (e.key === 'Escape') closeCtx(); }}
   >
     <button class="ctx-item" type="button" onclick={ctxAdjust}>Adjust arrival time...</button>
+    <button class="ctx-item" type="button" onclick={ctxMealOut}>Set meal out time...</button>
+    <button class="ctx-item" type="button" onclick={ctxMealIn}>Set meal in time...</button>
     <button class="ctx-item" type="button" onclick={ctxWrap}>Mark as wrapped</button>
     <button class="ctx-item" type="button" onclick={ctxUnarrive}>Unarrive (clear arrival)</button>
     <div class="ctx-sep"></div>
@@ -1077,6 +1272,96 @@
   .ctx-item:hover { background: var(--bg4); color: var(--text); }
   .ctx-item.ctx-danger { color: var(--danger); }
   .ctx-sep { height: 1px; background: var(--border); margin: 3px 0; }
+
+  /* ── Mark All button ── */
+  .btn-mark-all { color: var(--success); border-color: rgba(52, 211, 153, 0.4); }
+  .btn-mark-all:hover { background: rgba(52, 211, 153, 0.1); border-color: var(--success); }
+
+  /* ── All-arrived state ── */
+  .all-arrived-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.07em;
+    color: var(--success);
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    border-radius: 3px;
+    padding: 2px 7px;
+    margin-left: auto;
+  }
+  .collapse-btn {
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    color: var(--text3);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: color 0.12s, background 0.12s;
+  }
+  .collapse-btn:hover { color: var(--text2); background: var(--bg3); }
+  .all-arrived-panel {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 18px;
+    margin: 12px;
+    background: rgba(52, 211, 153, 0.07);
+    border: 1px solid rgba(52, 211, 153, 0.25);
+    border-radius: 6px;
+  }
+  .all-arrived-icon {
+    font-size: 28px;
+    color: var(--success);
+    line-height: 1;
+  }
+  .all-arrived-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .all-arrived-text strong {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--success);
+  }
+  .all-arrived-text span {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Inline arrival time edit ── */
+  .arr-hint {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    opacity: 0.7;
+  }
+  .arr-time-cell { position: relative; min-width: 70px; }
+  .arr-time-val {
+    cursor: pointer;
+    border-bottom: 1px dashed var(--border2);
+    transition: color 0.12s, border-color 0.12s;
+    display: inline-block;
+  }
+  .arr-time-val:hover { color: var(--accent); border-color: var(--accent); }
+  .arr-time-val.meal-val { color: var(--text3); border-bottom-style: dotted; }
+  .arr-time-val.meal-val:hover { color: var(--accent); border-color: var(--accent); }
+  .arr-time-input {
+    width: 72px;
+    background: var(--bg3);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 5px;
+    outline: none;
+  }
 
   /* ── Responsive ── */
   @media (max-width: 768px) {

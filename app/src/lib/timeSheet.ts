@@ -100,35 +100,55 @@ export function generate(): TimeSheetData {
 
   const otThreshold = settings.otThresholds[0] ?? 8; // first threshold in hours
   const turnaroundMins = settings.turnaroundHours * 60;
+  const prevDayLastOutMins = parseHHMM(prodState.prevDayLastOut);
+
+  // Sort source rows by raw 24h call time, then name — avoids 12h string sort bug
+  const sortedRows = [...castData.rows].sort((a, b) => {
+    const ak = a.callTime || '99:99';
+    const bk = b.callTime || '99:99';
+    const cmp = ak.localeCompare(bk);
+    return cmp !== 0 ? cmp : a.name.localeCompare(b.name);
+  });
 
   // Build entries from cast tracker
   const entries: TimeSheetEntry[] = [];
   let lastWrapMins = 0;
+  let lastInMins = 0; // track latest actual in-time for cameraWrap vs lastOut
 
-  for (const r of castData.rows) {
+  for (const r of sortedRows) {
     if (!r.name.trim()) continue;
 
     const inMins = parseHHMM(r.arrivedAt);
     const wrapMins = parseHHMM(r.wrapTime);
     const callMins = parseHHMM(r.callTime);
 
+    // Handle overnight: if wrapMins < inMins, add 1440 (next day wrap)
+    const effectiveWrapMins = (inMins != null && wrapMins != null && wrapMins < inMins)
+      ? wrapMins + 1440
+      : wrapMins;
+
     let hoursWorked = 0;
     let otHours = 0;
-    if (inMins != null && wrapMins != null && wrapMins > inMins) {
-      hoursWorked = decimalHours(wrapMins - inMins);
+    if (inMins != null && effectiveWrapMins != null && effectiveWrapMins > inMins) {
+      const workedMins = effectiveWrapMins - inMins;
+      hoursWorked = decimalHours(workedMins);
       const otThresholdMins = otThreshold * 60;
-      const workedMins = wrapMins - inMins;
       if (workedMins > otThresholdMins) {
         otHours = decimalHours(workedMins - otThresholdMins);
       }
     }
 
-    // Track latest wrap
+    // Track latest wrap (camera wrap = last wrapMins raw, lastOut = latest effective wrap)
     if (wrapMins != null && wrapMins > lastWrapMins) lastWrapMins = wrapMins;
+    if (effectiveWrapMins != null && effectiveWrapMins > lastInMins) lastInMins = effectiveWrapMins;
 
-    // Forced call detection: would need previous day's wrap time
-    // For now, check if call time is unreasonably early (placeholder logic)
-    const forcedCall = false; // TODO: cross-day turnaround check
+    // Forced call detection: turnaround violation if call is within turnaround of prev day's last out
+    let forcedCall = false;
+    if (settings.turnaroundEnforced && prevDayLastOutMins != null && callMins != null) {
+      let gap = callMins - prevDayLastOutMins;
+      if (gap < 0) gap += 1440; // call is next day (crosses midnight)
+      forcedCall = gap < turnaroundMins;
+    }
 
     entries.push({
       name: r.name,
@@ -136,8 +156,8 @@ export function generate(): TimeSheetData {
       empId: r.empId,
       callTime: fmt12(r.callTime),
       actualIn: fmt12(r.arrivedAt),
-      mealOut: '',   // not tracked per-person in current timer system
-      mealIn: '',
+      mealOut: r.mealOut ? fmt12(r.mealOut) : '',
+      mealIn: r.mealIn ? fmt12(r.mealIn) : '',
       wrapTime: fmt12(r.wrapTime),
       hoursWorked,
       otHours,
@@ -148,24 +168,26 @@ export function generate(): TimeSheetData {
     });
   }
 
-  // Sort by call time then name
-  entries.sort((a, b) => {
-    const cmp = a.callTime.localeCompare(b.callTime);
-    return cmp !== 0 ? cmp : a.name.localeCompare(b.name);
-  });
+  // Shoot date: UHState has no date field — use today
+  const shootDateStr = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+
+  // cameraWrap = last raw wrapTime (actual camera down), lastOut = latest effective wrap (may be next day)
+  function minsToHHMM(m: number): string {
+    return `${Math.floor((m % 1440) / 60).toString().padStart(2, '0')}:${(m % 60).toString().padStart(2, '0')}`;
+  }
 
   return {
     production: uh.production ?? '',
     episode: uh.episode ?? '',
-    date: new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+    date: shootDateStr,
     shootDay: uh.shootDay ?? '',
     director: uh.director ?? '',
 
     generalCall: fmt12(uh.callTime),
     firstShot: fmt12(prodState.firstShot ?? uh.firstShot),
     mealBreak: prodState.lastMeal ? fmt12(prodState.lastMeal) : '—',
-    cameraWrap: lastWrapMins > 0 ? fmt12(`${Math.floor(lastWrapMins / 60).toString().padStart(2, '0')}:${(lastWrapMins % 60).toString().padStart(2, '0')}`) : '—',
-    lastOut: lastWrapMins > 0 ? fmt12(`${Math.floor(lastWrapMins / 60).toString().padStart(2, '0')}:${(lastWrapMins % 60).toString().padStart(2, '0')}`) : '—',
+    cameraWrap: lastWrapMins > 0 ? fmt12(minsToHHMM(lastWrapMins)) : '—',
+    lastOut: lastInMins > 0 ? fmt12(minsToHHMM(lastInMins)) : '—',
 
     entries,
     label: settings.timeSheetLabel,

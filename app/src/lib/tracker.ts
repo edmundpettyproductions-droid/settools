@@ -23,6 +23,8 @@ export interface TrackerRow {
   kioskIn: string | null;
   kioskOut: string | null;
   wrapTime: string | null;
+  mealOut: string;          // HH:MM — sent to meal
+  mealIn: string;           // HH:MM — back from meal
 }
 
 export interface TrackerData {
@@ -139,6 +141,8 @@ export function mkRow(id: number, data?: Partial<TrackerRow>): TrackerRow {
     kioskIn: data?.kioskIn ?? null,
     kioskOut: data?.kioskOut ?? null,
     wrapTime: data?.wrapTime ?? null,
+    mealOut: data?.mealOut ?? '',
+    mealIn: data?.mealIn ?? '',
   };
 }
 
@@ -168,6 +172,8 @@ export function loadTracker(key: string): TrackerData {
       kioskIn: typeof o.kioskIn === 'string' ? o.kioskIn : null,
       kioskOut: typeof o.kioskOut === 'string' ? o.kioskOut : null,
       wrapTime: typeof o.wrapTime === 'string' ? o.wrapTime : null,
+      mealOut: String(o.mealOut ?? ''),
+      mealIn: String(o.mealIn ?? ''),
     }));
   }
   return { rows, nid: Math.max(nid, rows.length + 1) };

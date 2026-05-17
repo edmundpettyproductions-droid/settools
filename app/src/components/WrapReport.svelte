@@ -431,7 +431,7 @@
     min-width: 80px;
   }
   .card.danger { border-color: var(--danger); background: rgba(224, 90, 90, 0.08); }
-  .card.warn { border-color: var(--warning); background: rgba(251, 191, 36, 0.08); }
+  .card.warn { border-color: var(--warn); background: rgba(251, 191, 36, 0.08); }
   .card-label {
     font-family: var(--mono);
     font-size: 9px;
@@ -446,7 +446,7 @@
     font-family: var(--cond);
   }
   .card.danger .card-value { color: var(--danger); }
-  .card.warn .card-value { color: var(--warning); }
+  .card.warn .card-value { color: var(--warn); }
 
   /* ─── Sections ─── */
   .sections { display: flex; flex-direction: column; gap: 8px; }
@@ -469,7 +469,7 @@
   }
   .section-title:hover { color: var(--accent); }
   .section-title.danger-text { color: var(--danger); }
-  .section-title.warn-text { color: var(--warning); }
+  .section-title.warn-text { color: var(--warn); }
 
   /* ─── Scene grid ─── */
   .scene-grid { padding: 0 4px 4px; }
@@ -498,7 +498,7 @@
   .sg-sc { font-weight: 600; color: var(--text); }
   .status-complete { color: var(--success) !important; }
   .status-shooting { color: var(--accent) !important; }
-  .status-rehearsing { color: var(--warning) !important; }
+  .status-rehearsing { color: var(--warn) !important; }
   .status-omitted { color: var(--text3) !important; }
 
   /* ─── Person grid ─── */
@@ -561,7 +561,7 @@
     border-bottom: 1px solid var(--border);
     font-size: 12px;
   }
-  .issue-type { font-weight: 600; white-space: nowrap; color: var(--warning); }
+  .issue-type { font-weight: 600; white-space: nowrap; color: var(--warn); }
   .issue-desc { color: var(--text); flex: 1; }
   .issue-person { font-family: var(--mono); font-size: 10px; color: var(--text3); }
 
@@ -596,7 +596,7 @@
     border-bottom: 1px solid var(--border);
     font-size: 12px;
   }
-  .comm-row.flagged { border-left: 2px solid var(--warning); padding-left: 6px; }
+  .comm-row.flagged { border-left: 2px solid var(--warn); padding-left: 6px; }
   .comm-icon { font-size: 14px; }
   .comm-dir { font-family: var(--mono); font-size: 10px; color: var(--text3); }
   .comm-dir.inbound { color: var(--success); }

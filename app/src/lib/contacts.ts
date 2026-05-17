@@ -97,53 +97,43 @@ function readNextDay(): Partial<UnifiedContact>[] {
 }
 
 // ── DOOD reader ───────────────────────────────────────────────────────────
-// settools_dood shape varies; we tolerate three flavors:
-//   1) { departments: { 'Cast': { 'Person Name': { days: [...] } } } }
-//   2) { departments: { 'Cast': { people: [{ name, days }] } } }
-//   3) { departments: { 'Cast': { rows: [{ name, days }] } } }
+// Reads the Svelte app's DOOD format: { cast: [{id, name, role}], days: [{dayNum, label}],
+// grid: Record<castId, Record<dayNum, StatusCode>> }
+// Working status codes: W, SW, WF, SWF, T (Travel counts as working day).
 //
 // Returns a map: normalized name → array of DOOD appearances.
+const DOOD_WORKING_CODES = new Set(['W', 'SW', 'WF', 'SWF', 'T']);
+
 function readDoodCoverage(): Map<string, DoodAppearance[]> {
   const map = new Map<string, DoodAppearance[]>();
-  const raw = sync.getJSON<{ departments?: Record<string, unknown> }>('settools_dood');
-  if (!raw?.departments) return map;
+  const raw = sync.getJSON<{
+    cast?: Array<{ id: string; name: string; role?: string }>;
+    days?: Array<{ dayNum: number; label?: string }>;
+    grid?: Record<string, Record<string, string>>;
+  }>('settools_dood');
+  if (!raw?.cast?.length || !raw?.grid) return map;
 
-  for (const [deptName, deptData] of Object.entries(raw.departments)) {
-    if (!deptData || typeof deptData !== 'object') continue;
-    const dd = deptData as Record<string, unknown>;
+  for (const castMember of raw.cast) {
+    const personName = strOrEmpty(castMember.name);
+    if (!personName) continue;
 
-    let people: Array<{ name: string; days?: unknown; notes?: string }> = [];
-    if (Array.isArray(dd.people)) {
-      people = dd.people as typeof people;
-    } else if (Array.isArray(dd.rows)) {
-      people = dd.rows as typeof people;
-    } else {
-      // Treat as map { name: details }
-      people = Object.entries(dd)
-        .filter(([k]) => k !== 'name' && k !== 'department')
-        .map(([name, details]) => {
-          const d = typeof details === 'object' && details !== null
-            ? (details as Record<string, unknown>)
-            : {};
-          return { name, days: d.days ?? d.daysWorked ?? d.workingDays, notes: typeof d.notes === 'string' ? d.notes : undefined };
-        });
-    }
+    // Find all day numbers where this person has a working code
+    const gridRow = raw.grid[castMember.id] ?? {};
+    const days: number[] = Object.entries(gridRow)
+      .filter(([, code]) => DOOD_WORKING_CODES.has(code))
+      .map(([dayNum]) => parseInt(dayNum, 10))
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => a - b);
 
-    for (const p of people) {
-      const personName = strOrEmpty(p.name);
-      if (!personName) continue;
-      const days = parseDays(p.days);
-      const appearance: DoodAppearance = {
-        department: deptName,
-        days,
-        days_label: formatDays(days),
-        notes: typeof p.notes === 'string' ? p.notes : undefined,
-      };
-      const key = nameKey(personName);
-      const arr = map.get(key) ?? [];
-      arr.push(appearance);
-      map.set(key, arr);
-    }
+    if (!days.length) continue;
+
+    const appearance: DoodAppearance = {
+      department: 'Cast',
+      days,
+      days_label: formatDays(days),
+    };
+    const key = nameKey(personName);
+    map.set(key, [appearance]);
   }
   return map;
 }

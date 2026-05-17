@@ -188,7 +188,11 @@ export function generate(): WrapReport {
       .map((r) => {
         const arrMins = parseHHMM(r.arrivedAt);
         const wrapMins = parseHHMM(r.wrapTime);
-        const worked = arrMins != null && wrapMins != null ? wrapMins - arrMins : null;
+        // Handle overnight: if wrap is before arrival, wrap is next day (+1440 mins)
+        const effectiveWrap = (arrMins != null && wrapMins != null && wrapMins < arrMins)
+          ? wrapMins + 1440
+          : wrapMins;
+        const worked = arrMins != null && effectiveWrap != null ? effectiveWrap - arrMins : null;
         return {
           name: r.name,
           role: r.role,

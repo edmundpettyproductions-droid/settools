@@ -17,8 +17,8 @@ export interface BGPerformer {
   checkOutTime: string;      // HH:MM (wrap)
   wardrobeChanges: number;   // count of wardrobe changes
   bumps: string[];           // list of bump category names
-  mealIn: string;            // HH:MM - sent to meal
-  mealOut: string;           // HH:MM - back from meal
+  mealIn: string;            // HH:MM - first meal tap (went out to meal) — NOTE: named mealIn for historical reasons; semantically this is "meal out"
+  mealOut: string;           // HH:MM - second meal tap (returned from meal) — NOTE: named mealOut for historical reasons; semantically this is "meal in"
   scenes: string;            // which scenes they appear in
   notes: string;
 }

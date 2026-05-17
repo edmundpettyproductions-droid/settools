@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -41,6 +41,39 @@ h1{font-family:'Barlow Condensed',sans-serif;font-size:2.2rem;letter-spacing:.1e
 .divider{width:100%;max-width:700px;border:none;border-top:1px solid #1e1e22}
 .isolated-note{font-size:11px;color:#5c5c6e;text-align:center;max-width:580px;line-height:1.6}
 .isolated-note strong{color:#9a9aaa}
+
+/* Shared data panel */
+.shared-panel{width:100%;max-width:700px;border:1px solid #1e2430;border-radius:8px;background:#0a0d12;overflow:hidden}
+.shared-panel-hdr{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#0d1119;border-bottom:1px solid #1e2430}
+.shared-panel-hdr span{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#4a90d9}
+.shared-rows{display:grid;grid-template-columns:1fr 1fr;gap:0}
+@media(max-width:500px){.shared-rows{grid-template-columns:1fr}}
+.shared-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #111520;border-right:1px solid #111520}
+.shared-row:nth-child(even){border-right:none}
+.shared-row:nth-last-child(-n+2){border-bottom:none}
+.sr-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#2a2a35}
+.sr-dot.ok{background:#34d399}
+.sr-dot.warn{background:#f0c040}
+.sr-dot.none{background:#2a2a35}
+.sr-body{flex:1;min-width:0}
+.sr-label{font-size:10px;color:#5c6070;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.sr-value{font-size:12px;color:#c0c0cc;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-value.dim{color:#404050}
+.sr-link{font-size:10px;color:#4a90d9;text-decoration:none;flex-shrink:0;padding:2px 6px;border-radius:3px;border:1px solid #1e3050}
+.sr-link:hover{background:#1e3050}
+
+/* Backup / Restore panel */
+.backup-panel{width:100%;max-width:700px;border:1px solid #2a2a32;border-radius:8px;background:#0a0a0c;overflow:hidden}
+.backup-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#101013;border-bottom:1px solid #2a2a32}
+.backup-hdr span{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9a9aaa}
+.backup-body{padding:14px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.backup-btn{background:#1a1a1f;border:1px solid #2e2e36;border-radius:4px;color:#e8e8ec;font-family:inherit;font-size:12px;padding:7px 14px;cursor:pointer;font-weight:500;letter-spacing:.02em;transition:border-color .15s,background .15s}
+.backup-btn:hover{border-color:#f0c040;background:#1f1f25;color:#f0c040}
+.backup-btn.danger:hover{border-color:#e05a5a;background:#1f1515;color:#e05a5a}
+.backup-status{font-size:11px;color:#5c5c6e;font-family:monospace;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.backup-status.ok{color:#34d399}.backup-status.err{color:#e05a5a}
+.backup-note{font-size:10px;color:#5c5c6e;padding:0 16px 12px;line-height:1.5}
+.backup-note strong{color:#9a9aaa}
 </style>
 </head>
 <body>
@@ -77,5 +110,186 @@ h1{font-family:'Barlow Condensed',sans-serif;font-size:2.2rem;letter-spacing:.1e
   </div>
 </div>
 
+
+<hr class="divider">
+
+<div class="shared-panel">
+  <div class="shared-panel-hdr">
+    <span>⬡ Shared Data</span>
+  </div>
+  <div class="shared-rows" id="shared-rows">
+    <!-- populated by JS -->
+  </div>
+</div>
+
+<div class="backup-panel">
+  <div class="backup-hdr">
+    <span>⬢ Backup / Restore</span>
+    <span id="backup-keycount" style="font-size:10px;color:#5c5c6e;font-family:monospace"></span>
+  </div>
+  <div class="backup-body">
+    <button class="backup-btn" id="btn-export">⬇ Download Backup</button>
+    <button class="backup-btn" id="btn-import">⬆ Restore from File</button>
+    <input type="file" id="file-import" accept=".json,application/json" style="display:none">
+    <button class="backup-btn danger" id="btn-clear">⚠ Clear All Data</button>
+    <span class="backup-status" id="backup-status"></span>
+  </div>
+  <div class="backup-note">
+    <strong>Save your work.</strong> All tool data lives in this browser's localStorage and is lost if cache is cleared or you switch devices.
+    Download a backup before each shoot day. The API key is excluded from backups for security.
+  </div>
+</div>
+
+<script>
+// Backup / Restore
+(function(){
+  var STATUS=document.getElementById('backup-status');
+  function setStatus(cls,msg){STATUS.className='backup-status '+(cls||'');STATUS.textContent=msg||'';}
+  function backupableKeys(){
+    return Object.keys(localStorage).filter(function(k){
+      return /^(settools[_-]|ST[_-]|st[_-])/i.test(k);
+    });
+  }
+  function updateCount(){
+    var n=backupableKeys().length;
+    document.getElementById('backup-keycount').textContent=n+' key'+(n===1?'':'s')+' stored';
+  }
+  updateCount();
+
+  document.getElementById('btn-export').addEventListener('click',function(){
+    try{
+      var data={};
+      backupableKeys().forEach(function(k){
+        if(k==='st-key') return;
+        data[k]=localStorage.getItem(k);
+      });
+      var blob={version:1,exportedAt:new Date().toISOString(),origin:location.origin,keyCount:Object.keys(data).length,data:data};
+      var json=JSON.stringify(blob,null,2);
+      var url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+      var a=document.createElement('a');
+      var stamp=new Date().toISOString().replace(/[:T]/g,'-').slice(0,16);
+      a.href=url;a.download='set-tools-backup-'+stamp+'.json';
+      document.body.appendChild(a);a.click();
+      setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+      setStatus('ok','Backup downloaded — '+Object.keys(data).length+' keys saved');
+    }catch(e){setStatus('err','Export failed: '+e.message);}
+  });
+
+  document.getElementById('btn-import').addEventListener('click',function(){
+    document.getElementById('file-import').click();
+  });
+  document.getElementById('file-import').addEventListener('change',function(e){
+    var file=e.target.files[0];if(!file)return;
+    var r=new FileReader();
+    r.onload=function(ev){
+      var parsed;
+      try{parsed=JSON.parse(ev.target.result);}catch(err){setStatus('err','Invalid JSON: '+err.message);return;}
+      if(!parsed||!parsed.data||typeof parsed.data!=='object'){setStatus('err','Not a valid backup file (missing .data)');return;}
+      var keys=Object.keys(parsed.data);
+      var msg='Restore '+keys.length+' keys from backup exported '+(parsed.exportedAt||'unknown date')+'?\n\n'
+        +'This will REPLACE current data for:\n'+keys.map(function(k){return '  • '+k;}).join('\n')
+        +'\n\nContinue?';
+      if(!confirm(msg)){setStatus('','Restore cancelled');return;}
+      try{
+        keys.forEach(function(k){localStorage.setItem(k,parsed.data[k]);});
+        setStatus('ok','Restored '+keys.length+' keys. Reloading…');
+        setTimeout(function(){location.reload();},600);
+      }catch(err){setStatus('err','Restore failed: '+err.message);}
+    };
+    r.readAsText(file);
+    e.target.value='';
+  });
+
+  document.getElementById('btn-clear').addEventListener('click',function(){
+    var keys=backupableKeys().filter(function(k){return k!=='st-key';});
+    if(!keys.length){setStatus('','Nothing to clear');return;}
+    if(!confirm('DELETE all Set Tools data ('+keys.length+' keys)?\n\nThis cannot be undone. Download a backup first if you want to recover later.\n\nThe API key will be preserved.')) return;
+    if(!confirm('Are you absolutely sure? Type-equivalent confirmation: this will wipe every project, DOOD, call sheet, and sign-in record.')) return;
+    keys.forEach(function(k){localStorage.removeItem(k);});
+    setStatus('ok','Cleared '+keys.length+' keys. Reloading…');
+    setTimeout(function(){location.reload();},600);
+  });
+})();
+</script>
+
+<script>
+(function(){
+  function row(label,value,dotClass,href){
+    return '<div class="shared-row">'
+      +'<div class="sr-dot '+dotClass+'"></div>'
+      +'<div class="sr-body"><div class="sr-label">'+label+'</div>'
+      +'<div class="sr-value'+(value?'':' dim')+'">'+(value||'None loaded')+'</div></div>'
+      +(href?'<a class="sr-link" href="'+href+'" target="_blank">Open →</a>':'')
+      +'</div>';
+  }
+
+  function render(){
+    var html='';
+
+    // Active project (settools_pt)
+    try{
+      var pt=JSON.parse(localStorage.getItem('settools_pt')||'{}');
+      var pid=pt.activeProject;
+      var proj=pid&&pt.projects&&pt.projects[pid];
+      if(proj){
+        var days=proj.days||[];
+        var lastDay=days.length?days[days.length-1]:null;
+        var val=proj.name+(lastDay?' — Day '+lastDay.dayNum:'');
+        html+=row('Active Project',val,'ok','crew-tracker.html');
+      } else {
+        html+=row('Active Project','','none','crew-tracker.html');
+      }
+    }catch(e){ html+=row('Active Project','','none','crew-tracker.html'); }
+
+    // Crew contacts (ST_nextday)
+    try{
+      var nd=JSON.parse(localStorage.getItem('ST_nextday')||'{}');
+      var contacts=nd.contacts||[];
+      if(contacts.length){
+        var withEmail=contacts.filter(function(c){return c.email;}).length;
+        html+=row('Crew Contacts',contacts.length+' people ('+withEmail+' with email)','ok','next-day.html');
+      } else {
+        html+=row('Crew Contacts','','none','next-day.html');
+      }
+    }catch(e){ html+=row('Crew Contacts','','none','next-day.html'); }
+
+    // Script version (ST_nextday.docs — any doc with type 'script')
+    try{
+      var nd2=JSON.parse(localStorage.getItem('ST_nextday')||'{}');
+      var docs=nd2.docs||[];
+      var scriptDoc=docs.find(function(d){return d.type==='script'||/script/i.test(d.name||'');});
+      if(scriptDoc){
+        html+=row('Script PDF',scriptDoc.name||(scriptDoc.version?'v'+scriptDoc.version:'Loaded'),'ok','next-day.html');
+      } else if(nd2.scriptVersion){
+        html+=row('Script PDF','Version '+nd2.scriptVersion,'warn','next-day.html');
+      } else {
+        html+=row('Script PDF','','none','next-day.html');
+      }
+    }catch(e){ html+=row('Script PDF','','none','next-day.html'); }
+
+    // DOOD (settools_dood or ST_nextday.dood)
+    try{
+      var doodRaw=localStorage.getItem('settools_dood');
+      var dood=doodRaw?JSON.parse(doodRaw):null;
+      if(!dood){
+        var nd3=JSON.parse(localStorage.getItem('ST_nextday')||'{}');
+        dood=nd3.dood||null;
+      }
+      if(dood&&(dood.cast||dood.rows)&&(dood.cast||dood.rows).length){
+        var doodCast=(dood.cast||dood.rows);html+=row('DOOD',doodCast.length+' cast member'+(doodCast.length!==1?'s':''),'ok','tomorrow/index.html');
+      } else {
+        html+=row('DOOD','','none','tomorrow/index.html');
+      }
+    }catch(e){ html+=row('DOOD','','none','tomorrow/index.html'); }
+
+    document.getElementById('shared-rows').innerHTML=html;
+  }
+
+  render();
+  // Refresh when any tool writes to localStorage
+  window.addEventListener('storage',render);
+})();
+</script>
 </body>
 </html>
+

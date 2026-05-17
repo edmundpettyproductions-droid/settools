@@ -2,7 +2,7 @@
 
 > This file is auto-loaded at the start of every Claude Code session.
 > Keep it current. When something important is discovered, add it here.
-> Last updated: 2026-05-15 (Session 8 — 23-tab build, Sides ported, scene reorder added)
+> Last updated: 2026-05-16 (Session 11 — Full codebase audit + 20+ bug fixes across all Svelte components, lib files, and static HTML tools)
 
 ---
 

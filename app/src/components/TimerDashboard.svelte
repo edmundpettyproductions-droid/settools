@@ -3,6 +3,7 @@
   import * as sync from '../lib/sync';
   import * as PT from '../lib/prodTimers';
   import * as T from '../lib/tracker';
+  import * as PS from '../lib/projectSettings';
 
   // ─── State ──────────────────────────────────────────────────────────
   let timerState = $state<PT.ProdTimerState>({ ...PT.DEFAULT_STATE });
@@ -45,6 +46,9 @@
           keys.includes('settools_uh')) {
         load();
       }
+      if (keys.includes(PS.STORAGE_KEY)) {
+        settings = PS.load();
+      }
     });
     return () => {
       if (tickInterval) clearInterval(tickInterval);
@@ -84,6 +88,42 @@
 
   // ─── View toggle ───────────────────────────────────────────────────
   let view = $state<'timers' | 'board'>('timers');
+
+  // ─── Turnaround card ────────────────────────────────────────────────
+  let settings = $state(PS.load());
+  let prevDayEditOpen = $state(false);
+  let prevDayInput = $state('');
+
+  function openPrevDayEdit() {
+    prevDayInput = timerState.prevDayLastOut ?? '';
+    prevDayEditOpen = true;
+  }
+
+  async function commitPrevDay() {
+    const normalized = T.normTime(prevDayInput.trim());
+    timerState.prevDayLastOut = normalized || (prevDayInput.trim() ? prevDayInput.trim() : null);
+    prevDayEditOpen = false;
+    await PT.saveState(timerState);
+  }
+
+  function cancelPrevDay() {
+    prevDayEditOpen = false;
+  }
+
+  function computeEarliestCall(lastOut: string | null, turnaroundH: number): string | null {
+    if (!lastOut) return null;
+    const m = /^(\d{1,2}):(\d{2})$/.exec(lastOut);
+    if (!m?.[1] || !m[2]) return null;
+    const totalMins = parseInt(m[1], 10) * 60 + parseInt(m[2], 10) + turnaroundH * 60;
+    const h = Math.floor(totalMins / 60) % 24;
+    const mn = totalMins % 60;
+    return `${h.toString().padStart(2, '0')}:${mn.toString().padStart(2, '0')}`;
+  }
+
+  let earliestCallTomorrow = $derived(computeEarliestCall(timerState.prevDayLastOut, settings.turnaroundHours));
+
+  // Svelte action for auto-focus
+  function focus(node: HTMLElement) { node.focus(); }
 
   // ─── OT formatting ────────────────────────────────────────────────
   function fmtHours(h: number): string {
@@ -146,6 +186,37 @@
         </div>
       </div>
     {/if}
+
+    <!-- Turnaround card -->
+    <div class="stat-card turnaround-card">
+      <div class="stat-label">Turnaround</div>
+      {#if prevDayEditOpen}
+        <input
+          class="prev-day-input"
+          type="text"
+          bind:value={prevDayInput}
+          placeholder="HH:MM"
+          onkeydown={(e) => {
+            if (e.key === 'Enter') { void commitPrevDay(); }
+            if (e.key === 'Escape') cancelPrevDay();
+          }}
+          onblur={() => setTimeout(() => { if (prevDayEditOpen) void commitPrevDay(); }, 120)}
+          use:focus
+        />
+      {:else}
+        <button
+          class="prev-day-val"
+          onclick={openPrevDayEdit}
+          title="Click to set previous day's last out time"
+        >{timerState.prevDayLastOut ? T.fmt12(timerState.prevDayLastOut) : '—'}</button>
+        <div class="stat-sub">prev last out</div>
+      {/if}
+      {#if earliestCallTomorrow}
+        <div class="turnaround-earliest">→ {T.fmt12(earliestCallTomorrow)} earliest</div>
+      {:else if settings.turnaroundHours}
+        <div class="turnaround-hint">{settings.turnaroundHours}h turnaround</div>
+      {/if}
+    </div>
 
     <div class="strip-actions">
       <button class="view-btn" class:active={view === 'timers'} onclick={() => view = 'timers'}>OT List</button>
@@ -355,6 +426,47 @@
   .stat-sub { font-size: 10px; color: var(--text2); white-space: nowrap; }
   .stat-card.warn { border-color: var(--warn); }
   .stat-card.warn .stat-value { color: var(--warn); }
+
+  /* Turnaround card */
+  .turnaround-card { min-width: 130px; }
+  .prev-day-val {
+    background: none;
+    border: none;
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+  .prev-day-val:hover { color: var(--accent); }
+  .prev-day-input {
+    background: var(--bg3);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 700;
+    padding: 2px 6px;
+    width: 80px;
+    text-align: center;
+    outline: none;
+  }
+  .turnaround-earliest {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--success);
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+  .turnaround-hint {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 2px;
+  }
 
   .strip-actions {
     display: flex;

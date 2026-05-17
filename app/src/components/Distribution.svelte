@@ -3,13 +3,20 @@
   import * as sync from '../lib/sync';
   import * as D from '../lib/distro';
   import * as NC from '../lib/nextCall';
+  import * as extract from '../lib/extract';
 
   // ─── State ──────────────────────────────────────────────────────────
   let data = $state<D.DistroState>(D.loadDistro());
   let ncData = $state<NC.NextCallData>(NC.loadNextCall());
   let view = $state<'compose' | 'recipients'>('compose');
-  let emailBody = $state('');
+  let emailBody = $state(D.loadDistro().bodyCache ?? '');
   let copyMsg = $state('');
+
+  // AI update state
+  let aiPanelOpen = $state(false);
+  let aiPastedEmail = $state('');
+  let aiUpdating = $state(false);
+  let aiStatus = $state<{ type: 'ok' | 'err'; msg: string } | null>(null);
 
   // ─── Derived ────────────────────────────────────────────────────────
   let includedCount = $derived(data.recipients.filter((r) => r.included).length);
@@ -82,6 +89,48 @@
   }
 
   function onBlur() { void save(); }
+
+  // Persist email body across navigation
+  $effect(() => {
+    if (data.bodyCache !== emailBody) {
+      data.bodyCache = emailBody;
+      void save();
+    }
+  });
+
+  // ─── AI email updater ───────────────────────────────────────────────
+  async function aiUpdateEmail() {
+    if (!aiPastedEmail.trim()) { aiStatus = { type: 'err', msg: 'Paste an existing email first.' }; return; }
+    aiUpdating = true;
+    aiStatus = null;
+    try {
+      const ncText = D.generateEmailBody(ncData, '', '');
+      const prompt = `You are a 2nd AD writing a production call sheet email.
+
+Below is an existing call sheet email. Rewrite it to incorporate the updated production information provided.
+Keep the same tone and structure. Replace outdated call times, scene lists, locations, and dates with the new data.
+Keep any personal opening/closing language from the original unless it refers to specific outdated information.
+Return ONLY the updated email body text — no subject line, no explanation.
+
+UPDATED PRODUCTION INFO:
+${ncText}
+
+EXISTING EMAIL:`;
+      const updated = await extract.extractFromText(aiPastedEmail, prompt, {
+        system: 'Return only the updated email body text. No preamble, no markdown.',
+        maxTokens: 4000,
+      });
+      emailBody = updated.trim();
+      aiPastedEmail = '';
+      aiPanelOpen = false;
+      aiStatus = { type: 'ok', msg: 'Email updated by AI — review above.' };
+      setTimeout(() => aiStatus = null, 4000);
+    } catch (e) {
+      aiStatus = { type: 'err', msg: e instanceof Error ? e.message.slice(0, 150) : String(e) };
+    } finally {
+      aiUpdating = false;
+    }
+  }
 </script>
 
 <div class="dist-tab">
@@ -139,6 +188,38 @@
           placeholder="Please confirm receipt. Thank you!"
           onblur={onBlur}
         ></textarea>
+      </div>
+
+      <!-- AI Email Updater -->
+      <div class="ai-update-section">
+        <button
+          class="ai-toggle-btn"
+          onclick={() => { aiPanelOpen = !aiPanelOpen; aiStatus = null; }}
+          aria-expanded={aiPanelOpen}
+        >
+          🤖 AI Update Existing Email {aiPanelOpen ? '▲' : '▼'}
+        </button>
+        {#if aiPanelOpen}
+          <div class="ai-panel">
+            <p class="ai-desc">Paste a previous call sheet email below. AI will rewrite it with updated Next Day Call data while preserving your voice and structure.</p>
+            <textarea
+              id="ai-paste-input"
+              bind:value={aiPastedEmail}
+              class="fld-ta ai-paste"
+              rows="6"
+              placeholder="Paste the existing call sheet email here..."
+            ></textarea>
+            <div class="ai-panel-actions">
+              <button class="action-btn" onclick={aiUpdateEmail} disabled={aiUpdating || !aiPastedEmail.trim()}>
+                {aiUpdating ? '⟳ Updating...' : '🤖 Update Email'}
+              </button>
+              <button class="action-btn ghost" onclick={() => { aiPastedEmail = ''; aiPanelOpen = false; }}>Cancel</button>
+              {#if aiStatus}
+                <span class="ai-status {aiStatus.type}">{aiStatus.msg}</span>
+              {/if}
+            </div>
+          </div>
+        {/if}
       </div>
 
       <!-- Actions -->
@@ -375,6 +456,50 @@
   .rg-name { font-weight: 600; color: var(--text); }
   .rg-email { font-family: var(--mono); font-size: 11px; color: var(--success); }
   .rg-dept { font-size: 11px; color: var(--text2); }
+
+  /* ─── AI update panel ─── */
+  .ai-update-section {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .ai-toggle-btn {
+    width: 100%;
+    text-align: left;
+    background: var(--bg2);
+    border: none;
+    padding: 9px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    letter-spacing: 0.03em;
+  }
+  .ai-toggle-btn:hover { background: var(--bg3); color: var(--accent); }
+  .ai-toggle-btn[aria-expanded="true"] { color: var(--accent); background: rgba(167, 139, 250, 0.07); }
+  .ai-panel {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--bg);
+  }
+  .ai-desc {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.5;
+    margin: 0;
+  }
+  .ai-paste { min-height: 100px; }
+  .ai-panel-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .ai-status {
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .ai-status.ok { color: var(--success); }
+  .ai-status.err { color: var(--danger); }
 
   @media (max-width: 640px) {
     .compose-scroll { padding: 10px 12px; }

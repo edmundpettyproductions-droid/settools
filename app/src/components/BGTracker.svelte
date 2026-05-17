@@ -328,7 +328,7 @@
   }
   .count-badge { background: rgba(52, 211, 153, 0.1); color: var(--success); border-color: rgba(52, 211, 153, 0.2); }
   .wrap-badge { background: rgba(167, 139, 250, 0.1); color: var(--accent); border-color: rgba(167, 139, 250, 0.2); }
-  .bump-badge { background: rgba(251, 191, 36, 0.1); color: var(--warning); border-color: rgba(251, 191, 36, 0.2); }
+  .bump-badge { background: rgba(251, 191, 36, 0.1); color: var(--warn); border-color: rgba(251, 191, 36, 0.2); }
   .toolbar-actions { display: flex; gap: 6px; margin-left: auto; align-items: center; flex-wrap: wrap; }
   .tb-btn {
     background: none;
@@ -554,7 +554,7 @@
   }
   .bump-chip.active {
     background: rgba(251, 191, 36, 0.12);
-    color: var(--warning);
+    color: var(--warn);
     border-color: rgba(251, 191, 36, 0.3);
   }
   .bump-add {
@@ -592,7 +592,7 @@
     transition: all 0.1s;
   }
   .bp-option:hover { border-color: var(--accent); color: var(--accent); }
-  .bp-option.selected { background: rgba(251, 191, 36, 0.12); color: var(--warning); border-color: rgba(251, 191, 36, 0.3); }
+  .bp-option.selected { background: rgba(251, 191, 36, 0.12); color: var(--warn); border-color: rgba(251, 191, 36, 0.3); }
 
   /* ─── Summary bar ─── */
   .summary-bar {
@@ -607,7 +607,7 @@
     flex-shrink: 0;
     flex-wrap: wrap;
   }
-  .at-meal { color: var(--warning); }
+  .at-meal { color: var(--warn); }
 
   @media (max-width: 640px) {
     .header-fields { flex-direction: column; }

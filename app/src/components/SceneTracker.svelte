@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import * as sync from '../lib/sync';
   import * as S from '../lib/scenes';
+  import * as NC from '../lib/nextCall';
 
   // ─── State ──────────────────────────────────────────────────────────
   let rows = $state<S.SceneRow[]>([]);
@@ -180,6 +181,13 @@
   async function applyPaste() {
     if (!pasteText.trim()) return;
     const result = S.applyPaste(rows, pasteText, nid);
+    // Warn before replacing existing scenes
+    if (result.result.replaced) {
+      const ok = confirm(
+        `This will replace your ${rows.length} existing scene${rows.length !== 1 ? 's' : ''} with ${result.result.added} pasted scene${result.result.added !== 1 ? 's' : ''}.\n\nTimings and status will be lost. Continue?`
+      );
+      if (!ok) return;
+    }
     rows = result.rows;
     nid = result.nid;
     showPaste = false;
@@ -193,6 +201,127 @@
     nid = 1;
     await save();
   }
+
+  // ─── estMins inline edit ───────────────────────────────────────────
+  let estEditId = $state<number | null>(null);
+  let estEditVal = $state('');
+  let estEditEl = $state<HTMLInputElement | null>(null);
+
+  async function startEstEdit(rowId: number) {
+    const row = rows.find(r => r.id === rowId);
+    estEditId = rowId;
+    estEditVal = row?.estMins ? String(row.estMins) : '';
+    await tick();
+    estEditEl?.focus();
+    estEditEl?.select();
+  }
+
+  async function commitEstEdit() {
+    if (estEditId == null) return;
+    const row = rows.find(r => r.id === estEditId);
+    if (row) {
+      row.estMins = parseInt(estEditVal, 10) || 0;
+      rows = rows;
+      await save();
+    }
+    estEditId = null;
+    estEditVal = '';
+  }
+
+  // ─── Timing inline edit (firstUp / wrapped) ───────────────────────
+  let timeEditId = $state<number | null>(null);
+  let timeEditField = $state<'firstUp' | 'wrapped'>('firstUp');
+  let timeEditVal = $state('');
+  let timeEditEl = $state<HTMLInputElement | null>(null);
+
+  async function startTimeEdit(rowId: number, field: 'firstUp' | 'wrapped') {
+    const row = rows.find(r => r.id === rowId);
+    if (!row) return;
+    timeEditId = rowId;
+    timeEditField = field;
+    timeEditVal = row[field] ?? '';
+    await tick();
+    timeEditEl?.focus();
+    timeEditEl?.select();
+  }
+
+  async function commitTimeEdit() {
+    if (timeEditId == null) return;
+    const row = rows.find(r => r.id === timeEditId);
+    if (row) {
+      // Normalize HH:MM or h:mm AM/PM → HH:MM 24h; empty clears the field
+      const m24 = /^(\d{1,2}):(\d{2})$/.exec(timeEditVal.trim());
+      const normalized = m24 ? `${m24[1]!.padStart(2,'0')}:${m24[2]}` : '';
+      row[timeEditField] = normalized || null;
+      rows = rows;
+      await save();
+    }
+    timeEditId = null;
+    timeEditVal = '';
+  }
+
+  function cancelTimeEdit() {
+    timeEditId = null;
+    timeEditVal = '';
+  }
+
+  // ─── Running schedule ──────────────────────────────────────────────
+  let showSchedule = $state(false);
+  let generalCallInput = $state('');
+
+  function loadGeneralCall() {
+    const nc = NC.loadNextCall();
+    if (nc.generalCall && !generalCallInput) generalCallInput = nc.generalCall;
+  }
+
+  let scheduleEntries = $derived.by(() => {
+    if (!showSchedule || !generalCallInput) return [];
+    return S.computeRunningSchedule(rows, generalCallInput);
+  });
+
+  // ─── Compare view ──────────────────────────────────────────────────
+  let showCompare = $state(false);
+  let ncScenes = $state<NC.NextCallScene[]>([]);
+
+  function loadNCScenes() {
+    ncScenes = NC.loadNextCall().scenes;
+  }
+
+  interface CompareRow {
+    ncIdx: number | null;   // position in Next Day Call (1-based)
+    ncNum: string;
+    ncDesc: string;
+    trackerIdx: number | null; // position in SceneTracker (1-based)
+    status: S.SceneStatus | null;
+    reordered: boolean; // position differs
+    onlyInNC: boolean;
+    onlyInTracker: boolean;
+  }
+
+  let compareRows = $derived.by<CompareRow[]>(() => {
+    if (!showCompare) return [];
+    const ncMap = new Map(ncScenes.map((s, i) => [s.sceneNum.trim(), i + 1]));
+    const trackerMap = new Map(rows.map((r, i) => [r.sceneNum.trim(), { idx: i + 1, status: r.status }]));
+    const allNums = new Set([...ncMap.keys(), ...trackerMap.keys()].filter(Boolean));
+    const result: CompareRow[] = [];
+    for (const num of allNums) {
+      const ncIdx = ncMap.get(num) ?? null;
+      const trackerEntry = trackerMap.get(num);
+      const trackerIdx = trackerEntry?.idx ?? null;
+      const ncScene = ncScenes.find(s => s.sceneNum.trim() === num);
+      result.push({
+        ncIdx,
+        ncNum: num,
+        ncDesc: ncScene?.description ?? '',
+        trackerIdx,
+        status: trackerEntry?.status ?? null,
+        reordered: ncIdx != null && trackerIdx != null && ncIdx !== trackerIdx,
+        onlyInNC: ncIdx != null && trackerIdx == null,
+        onlyInTracker: ncIdx == null && trackerIdx != null,
+      });
+    }
+    return result.sort((a, b) => (a.ncIdx ?? 999) - (b.ncIdx ?? 999) || (a.trackerIdx ?? 999) - (b.trackerIdx ?? 999));
+  });
 
   // ─── Grid template ─────────────────────────────────────────────────
   const gridTemplate = S.COLS.map((c) => S.COL_WIDTHS[c]).join(' ');
@@ -237,6 +366,18 @@
     <div class="toolbar-actions">
       <button class="tb-btn" onclick={addRow} title="Add scene row">+ Row</button>
       <button class="tb-btn" onclick={() => showPaste = !showPaste} title="Paste from spreadsheet">Paste</button>
+      <button
+        class="tb-btn"
+        class:active={showSchedule}
+        onclick={() => { showSchedule = !showSchedule; if (showSchedule) loadGeneralCall(); }}
+        title="Show estimated running schedule"
+      >Schedule</button>
+      <button
+        class="tb-btn"
+        class:active={showCompare}
+        onclick={() => { showCompare = !showCompare; if (showCompare) loadNCScenes(); }}
+        title="Compare with Next Day Call sheet"
+      >Compare</button>
       <button class="tb-btn danger" onclick={clearAll} title="Clear all scenes">Clear</button>
     </div>
   </div>
@@ -256,6 +397,80 @@
     </div>
   {/if}
 
+  <!-- RUNNING SCHEDULE PANEL -->
+  {#if showSchedule}
+    <div class="sched-panel">
+      <div class="sched-hdr">
+        <span class="sched-label">Running Schedule</span>
+        <label class="sched-input-wrap">
+          <span>General Call:</span>
+          <input
+            class="sched-call-input"
+            type="text"
+            bind:value={generalCallInput}
+            placeholder="07:00"
+          />
+        </label>
+        <span class="sched-hint">Click "Est" column per row to set minutes per scene</span>
+      </div>
+      {#if scheduleEntries.length === 0}
+        <div class="sched-empty">Set a general call time and add "Est" minutes to scenes to see running schedule</div>
+      {:else}
+        <div class="sched-list">
+          {#each scheduleEntries as e}
+            <div class="sched-entry">
+              <span class="sched-sc">Sc {e.sceneNum}</span>
+              <span class="sched-time">{e.estStart}</span>
+              <span class="sched-arrow">→</span>
+              <span class="sched-time">{e.estEnd}</span>
+              <span class="sched-dur">({S.fmtMins(e.estMins)})</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  <!-- COMPARE PANEL -->
+  {#if showCompare}
+    <div class="compare-panel">
+      <div class="compare-hdr">
+        <span class="compare-label">Schedule Comparison: Next Day Call vs Scene Tracker</span>
+        <button class="tb-btn ghost" onclick={() => { loadNCScenes(); }}>↺ Refresh</button>
+      </div>
+      {#if ncScenes.length === 0}
+        <div class="compare-empty">No scenes in Next Day Call tab. Build tomorrow's schedule there first.</div>
+      {:else if compareRows.length === 0}
+        <div class="compare-empty">No matching scene numbers found.</div>
+      {:else}
+        <div class="compare-grid">
+          <div class="cg-hdr">
+            <span>Scene #</span>
+            <span>Next Day # (Call)</span>
+            <span>Tracker # (Today)</span>
+            <span>Today's Status</span>
+            <span>Note</span>
+          </div>
+          {#each compareRows as cr}
+            <div class="cg-row"
+              class:only-nc={cr.onlyInNC}
+              class:only-tracker={cr.onlyInTracker}
+              class:reordered={cr.reordered}
+            >
+              <span class="cg-num">{cr.ncNum}</span>
+              <span>{cr.ncIdx != null ? `#${cr.ncIdx}` : '—'}</span>
+              <span>{cr.trackerIdx != null ? `#${cr.trackerIdx}` : '—'}</span>
+              <span>{cr.status ? S.STATUS_LABELS[cr.status] : '—'}</span>
+              <span class="cg-note">
+                {#if cr.onlyInNC}⚠ Not in tracker{:else if cr.onlyInTracker}⚠ Not on call sheet{:else if cr.reordered}⇅ Reordered{:else}✓{/if}
+              </span>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/if}
+
   <!-- GRID -->
   {#if rows.length === 0 && !showPaste}
     <div class="empty">
@@ -264,7 +479,7 @@
     </div>
   {:else if rows.length > 0}
     <div class="grid-scroll">
-      <div class="grid" role="grid" style="grid-template-columns: 40px {gridTemplate} 120px 80px 50px 36px 50px;">
+      <div class="grid" role="grid" style="grid-template-columns: 40px {gridTemplate} 120px 80px 50px 60px 36px 50px;">
         <!-- Header -->
         <div class="grid-header" role="row">
           <span class="gh">#</span>
@@ -274,6 +489,7 @@
           <span class="gh">Status</span>
           <span class="gh">Time</span>
           <span class="gh">Setups</span>
+          <span class="gh" title="Estimated minutes for running schedule">Est</span>
           <span class="gh" title="Reorder">⇅</span>
           <span class="gh"></span>
         </div>
@@ -325,10 +541,46 @@
               {S.STATUS_LABELS[row.status]}
             </button>
 
-            <!-- Timing -->
+            <!-- Timing: click to edit firstUp or wrapped manually -->
             <span class="cell time-cell">
-              {#if row.firstUp}
-                {S.fmt12(row.firstUp)}{#if row.wrapped} — {S.fmt12(row.wrapped)}{/if}
+              {#if timeEditId === row.id && timeEditField === 'firstUp'}
+                <input
+                  bind:this={timeEditEl}
+                  bind:value={timeEditVal}
+                  class="time-edit-input"
+                  placeholder="HH:MM"
+                  onblur={commitTimeEdit}
+                  onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void commitTimeEdit(); } if (e.key === 'Escape') cancelTimeEdit(); }}
+                />
+              {:else}
+                <button
+                  class="time-val-btn"
+                  title="Click to set first-up time"
+                  onclick={() => void startTimeEdit(row.id, 'firstUp')}
+                >
+                  {row.firstUp ? S.fmt12(row.firstUp) : '—'}
+                </button>
+              {/if}
+              {#if row.firstUp || row.wrapped}
+                <span class="time-sep">–</span>
+                {#if timeEditId === row.id && timeEditField === 'wrapped'}
+                  <input
+                    bind:this={timeEditEl}
+                    bind:value={timeEditVal}
+                    class="time-edit-input"
+                    placeholder="HH:MM"
+                    onblur={commitTimeEdit}
+                    onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void commitTimeEdit(); } if (e.key === 'Escape') cancelTimeEdit(); }}
+                  />
+                {:else}
+                  <button
+                    class="time-val-btn"
+                    title="Click to set wrapped time"
+                    onclick={() => void startTimeEdit(row.id, 'wrapped')}
+                  >
+                    {row.wrapped ? S.fmt12(row.wrapped) : '—'}
+                  </button>
+                {/if}
               {/if}
             </span>
 
@@ -338,6 +590,31 @@
               <span class="setup-count">{row.setups}</span>
               <button class="setup-btn" onclick={() => void bumpSetups(row, 1)} title="Increase setups">+</button>
             </span>
+
+            <!-- estMins -->
+            {#if estEditId === row.id}
+              <input
+                bind:this={estEditEl}
+                bind:value={estEditVal}
+                class="cell-edit est-edit"
+                type="number"
+                min="0"
+                max="999"
+                placeholder="min"
+                onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); void commitEstEdit(); } if (e.key === 'Escape') { estEditId = null; } }}
+                onblur={() => setTimeout(() => void commitEstEdit(), 80)}
+              />
+            {:else}
+              <span
+                class="cell est-cell"
+                class:empty={!row.estMins}
+                role="gridcell"
+                tabindex="0"
+                title="Click to set estimated shoot time in minutes"
+                onclick={() => void startEstEdit(row.id)}
+                onkeydown={(e) => { if (e.key === 'Enter') void startEstEdit(row.id); }}
+              >{row.estMins ? `${row.estMins}m` : ''}</span>
+            {/if}
 
             <!-- Reorder -->
             <span class="reorder-cell">
@@ -652,6 +929,32 @@
     color: var(--text2);
     white-space: nowrap;
     cursor: default;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .time-val-btn {
+    background: none;
+    border: none;
+    font-size: 10px;
+    color: var(--text2);
+    cursor: pointer;
+    padding: 0 2px;
+    border-radius: 2px;
+    font-family: var(--mono);
+  }
+  .time-val-btn:hover { background: var(--bg3); color: var(--accent); }
+  .time-sep { color: var(--text3); }
+  .time-edit-input {
+    width: 52px;
+    font-size: 10px;
+    font-family: var(--mono);
+    background: var(--bg3);
+    border: 1px solid var(--accent);
+    border-radius: 2px;
+    padding: 1px 3px;
+    color: var(--text);
+    outline: none;
   }
 
   /* ─── Setups ─── */
@@ -757,6 +1060,131 @@
   .ctx-menu button:hover { background: var(--bg3); }
   .ctx-menu button.danger { color: var(--danger); }
   .ctx-divider { border: none; border-top: 1px solid var(--border); margin: 3px 0; }
+
+  /* ─── estMins cell ─── */
+  .est-cell { font-family: var(--mono); font-size: 10px; color: var(--accent); text-align: center; }
+  .est-cell.empty { color: var(--text3); opacity: 0.4; }
+  .est-edit { font-family: var(--mono); font-size: 11px; text-align: center; width: 100%; min-width: 0; }
+
+  /* ─── Running schedule panel ─── */
+  .sched-panel {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    flex-shrink: 0;
+  }
+  .sched-hdr {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .sched-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .sched-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+  }
+  .sched-call-input {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 7px;
+    width: 65px;
+    text-align: center;
+  }
+  .sched-call-input:focus { border-color: var(--accent); outline: none; }
+  .sched-hint { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-left: auto; }
+  .sched-empty {
+    font-family: var(--mono); font-size: 11px; color: var(--text3);
+    padding: 6px 0; letter-spacing: 0.03em;
+  }
+  .sched-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sched-entry {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .sched-sc { color: var(--accent); font-weight: 600; }
+  .sched-time { color: var(--text); }
+  .sched-arrow { color: var(--text3); }
+  .sched-dur { color: var(--text3); font-size: 10px; }
+
+  /* ─── Compare panel ─── */
+  .compare-panel {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    max-height: 220px;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .compare-hdr {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    position: sticky;
+    top: 0;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .compare-empty { font-family: var(--mono); font-size: 11px; color: var(--text3); padding: 10px 14px; }
+  .compare-grid { font-size: 12px; }
+  .cg-hdr, .cg-row {
+    display: grid;
+    grid-template-columns: 80px 110px 110px 110px 1fr;
+    padding: 4px 14px;
+    gap: 8px;
+    align-items: center;
+  }
+  .cg-hdr {
+    font-family: var(--mono);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    position: sticky;
+    top: 37px;
+  }
+  .cg-row { border-bottom: 1px solid var(--border); }
+  .cg-row:hover { background: var(--bg3); }
+  .cg-row.reordered { background: rgba(251, 191, 36, 0.05); }
+  .cg-row.only-nc { background: rgba(167, 139, 250, 0.05); }
+  .cg-row.only-tracker { background: rgba(224, 90, 90, 0.05); }
+  .cg-num { font-family: var(--mono); font-weight: 600; color: var(--text); }
+  .cg-note { font-family: var(--mono); font-size: 10px; }
+  .cg-row.reordered .cg-note { color: var(--warn); }
+  .cg-row.only-nc .cg-note, .cg-row.only-tracker .cg-note { color: var(--danger); }
 
   @media (max-width: 640px) {
     .toolbar { padding: 8px 12px; gap: 8px; }

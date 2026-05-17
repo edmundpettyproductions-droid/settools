@@ -293,7 +293,7 @@
     padding: 2px 8px;
     border-radius: 4px;
     background: rgba(251, 191, 36, 0.1);
-    color: var(--warning);
+    color: var(--warn);
     border: 1px solid rgba(251, 191, 36, 0.2);
   }
   .toolbar-actions { display: flex; gap: 6px; margin-left: auto; }
@@ -339,7 +339,7 @@
   .fb-count {
     font-size: 9px;
     background: rgba(251, 191, 36, 0.2);
-    color: var(--warning);
+    color: var(--warn);
     padding: 0 4px;
     border-radius: 6px;
     margin-left: 3px;
@@ -426,7 +426,7 @@
     transition: border-color 0.12s;
   }
   .entry-card:hover { border-color: var(--accent); }
-  .entry-card.flagged { border-left: 3px solid var(--warning); }
+  .entry-card.flagged { border-left: 3px solid var(--warn); }
   .entry-card.resolved { opacity: 0.55; }
 
   .ec-left {
@@ -489,7 +489,7 @@
     line-height: 1;
   }
   .icon-btn:hover { color: var(--text); background: var(--bg2); }
-  .icon-btn.active { color: var(--warning); }
+  .icon-btn.active { color: var(--warn); }
   .icon-btn.check.active { color: var(--success); }
   .icon-btn.danger:hover { color: var(--danger); }
 

@@ -157,6 +157,21 @@
   }
 
   async function processCallSheet(file: File) {
+    // Warn before overwriting existing cast/crew data
+    const existingCast = T.loadTracker('settools_cast');
+    const existingCrew = T.loadTracker('settools_crew');
+    const namedCast = existingCast.rows.filter((r) => r.name.trim()).length;
+    const namedCrew = existingCrew.rows.filter((r) => r.name.trim()).length;
+    if (namedCast > 0 || namedCrew > 0) {
+      const ok = window.confirm(
+        `Uploading a call sheet will replace your existing data:\n` +
+        `  • ${namedCast} cast member${namedCast !== 1 ? 's' : ''}\n` +
+        `  • ${namedCrew} crew member${namedCrew !== 1 ? 's' : ''}\n\n` +
+        `Arrival times, wrap times, and meal times will be lost.\nContinue?`
+      );
+      if (!ok) return;
+    }
+
     csUploading = true;
     csStatus = { type: 'loading', msg: 'Reading PDF...' };
     try {

@@ -18,6 +18,7 @@ export interface DistroState {
   subject: string;
   bodyPrefix: string;   // text before the call sheet
   bodySuffix: string;   // text after the call sheet
+  bodyCache: string;    // last generated / AI-updated email body (persists across navigation)
   lastSent: string | null;
 }
 
@@ -32,6 +33,7 @@ export function loadDistro(): DistroState {
     subject: '',
     bodyPrefix: '',
     bodySuffix: '',
+    bodyCache: '',
     lastSent: null,
   };
 }
@@ -94,8 +96,8 @@ export function buildMailto(
     .filter((r) => r.included && r.email)
     .map((r) => r.email)
     .join(',');
-  const params = new URLSearchParams({ subject, body });
-  return `mailto:${to}?${params.toString()}`;
+  // URLSearchParams encodes spaces as +, but RFC 6068 mailto: requires %20
+  return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 /** Get a comma-separated email list for clipboard */

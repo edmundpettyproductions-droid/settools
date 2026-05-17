@@ -7,11 +7,12 @@ import type { UHState } from './types';
 
 // ─── Types ───────────────────────────────────────────────────────────
 export interface ProdTimerState {
-  firstShot: string | null;   // HH:MM — when cameras rolled
-  lastMeal: string | null;    // HH:MM — when last meal was called
-  mealDueMins: number;        // minutes until meal penalty (default 360 = 6h)
-  graceMins: number;          // union grace period (default 6)
-  mealCalled: boolean;        // has a meal been called for this period?
+  firstShot: string | null;      // HH:MM — when cameras rolled
+  lastMeal: string | null;       // HH:MM — when last meal was called
+  mealDueMins: number;           // minutes until meal penalty (default 360 = 6h)
+  graceMins: number;             // union grace period (default 6)
+  mealCalled: boolean;           // has a meal been called for this period?
+  prevDayLastOut: string | null; // HH:MM — previous day's last person out (for turnaround calc)
 }
 
 export const STORAGE_KEY = 'settools_prod_timers';
@@ -22,6 +23,7 @@ export const DEFAULT_STATE: ProdTimerState = {
   mealDueMins: 360,
   graceMins: 6,
   mealCalled: false,
+  prevDayLastOut: null,
 };
 
 // ─── Load / Save ─────────────────────────────────────────────────────

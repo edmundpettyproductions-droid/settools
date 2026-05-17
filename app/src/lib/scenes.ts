@@ -18,6 +18,7 @@ export interface SceneRow {
   wrapped: string | null; // HH:MM — when scene wrapped (auto or manual)
   setups: number;         // number of camera setups
   notes: string;
+  estMins: number;        // estimated shoot time in minutes (0 = not set)
 }
 
 export interface SceneData {
@@ -80,11 +81,12 @@ function normalizeRow(r: Record<string, unknown>, id: number): SceneRow {
     setLocation: String(r.setLocation ?? r.set   ?? r.location   ?? ''),
     cast:        String(r.cast        ?? r.actors ?? ''),
     pages:       String(r.pages       ?? r.pgs    ?? ''),
-    status:      (r.status as SceneStatus) ?? 'scheduled',
+    status:      (STATUSES.includes(r.status as SceneStatus) ? r.status as SceneStatus : 'scheduled'),
     firstUp:     (r.firstUp as string) ?? null,
     wrapped:     (r.wrapped as string) ?? null,
     setups:      typeof r.setups === 'number' ? r.setups : parseInt(String(r.setups ?? 0), 10) || 0,
     notes:       String(r.notes ?? ''),
+    estMins:     typeof r.estMins === 'number' ? r.estMins : parseInt(String(r.estMins ?? 0), 10) || 0,
   };
 }
 
@@ -136,8 +138,42 @@ export function mkScene(id: number, partial?: Partial<SceneRow>): SceneRow {
     wrapped: null,
     setups: 0,
     notes: '',
+    estMins: 0,
     ...partial,
   };
+}
+
+// ─── Running schedule ─────────────────────────────────────────────────
+export interface ScheduleEntry {
+  rowId: number;
+  sceneNum: string;
+  estStart: string;   // HH:MM
+  estEnd: string;     // HH:MM
+  estMins: number;
+}
+
+/** Compute estimated start/end times for each scene given a general call HH:MM.
+ *  Only includes scenes with estMins > 0. Scenes with status 'omitted' or 'complete' are skipped.
+ */
+export function computeRunningSchedule(rows: SceneRow[], generalCallHHMM: string): ScheduleEntry[] {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(generalCallHHMM.trim());
+  if (!m?.[1] || !m[2]) return [];
+  let cursor = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  const entries: ScheduleEntry[] = [];
+  for (const row of rows) {
+    if (row.status === 'omitted' || row.status === 'complete') continue;
+    if (!row.estMins) continue;
+    const start = cursor;
+    const end = cursor + row.estMins;
+    cursor = end;
+    const fmt = (mins: number) => {
+      const h = Math.floor(mins / 60) % 24;
+      const mm = mins % 60;
+      return `${h.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
+    };
+    entries.push({ rowId: row.id, sceneNum: row.sceneNum, estStart: fmt(start), estEnd: fmt(end), estMins: row.estMins });
+  }
+  return entries;
 }
 
 // ─── Status advancement ──────────────────────────────────────────────
