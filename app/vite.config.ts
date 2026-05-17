@@ -8,9 +8,12 @@ import { VitePWA } from 'vite-plugin-pwa';
 // Build:  `npm run build`  → ../tomorrow/  (served at /tomorrow/ by the
 //                            existing :8282 Python static server)
 //
-// `base: '/tomorrow/'` is critical: it makes the built index.html reference
-// its assets at /tomorrow/assets/... so they resolve correctly when served
-// under that path. Without it, the page loads but assets 404.
+// Base path differs by host:
+//  - Cloudflare Pages serves the app at the root         → base '/'
+//  - Local Python server serves it under /tomorrow/      → base '/tomorrow/'
+// Cloudflare sets CF_PAGES=1 in its build environment, which we detect here.
+const BASE = process.env.CF_PAGES ? '/' : '/tomorrow/';
+
 export default defineConfig({
   plugins: [
     svelte(),
@@ -40,8 +43,8 @@ export default defineConfig({
         theme_color: '#1a1a2e',
         background_color: '#1a1a2e',
         display: 'standalone',
-        start_url: '/tomorrow/',
-        scope: '/tomorrow/',
+        start_url: BASE,
+        scope: BASE,
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -57,7 +60,7 @@ export default defineConfig({
       },
     }),
   ],
-  base: '/tomorrow/',
+  base: BASE,
   server: {
     port: 5173,
     strictPort: false,
